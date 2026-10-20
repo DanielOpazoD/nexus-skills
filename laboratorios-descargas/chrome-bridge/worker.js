@@ -91,7 +91,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async()=>{try{await opening;sendResponse({ok:true});}catch(_){sendResponse({ok:false,error:'No se pudo abrir Nexo.'});}})();
     return true;
   }
-  if(['nexo.library.list','nexo.library.read','nexo.panel.tab'].includes(message?.type)){
+  if(['nexo.library.list','nexo.library.read','nexo.panel.tab','nexo.worker.health'].includes(message?.type)){
     if(!ownPanel(sender))return false;
     (async()=>{try{sendResponse({ok:true,result:await panelRequest(message)});}catch(_){sendResponse({ok:false,error:'Abre Nexo en este Mac o conecta tu carpeta Pacientes de Drive.'});}})();
     return true;

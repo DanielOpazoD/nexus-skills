@@ -1,5 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id),C=NexoLibraryCore,D=NexoDriveLibrary;
+const T=globalThis.NexoTransport;
 let activeView='request',provider=null,patients=[],selected=null,selectedDocument=null,sequence=0,loading=false;
 async function bridge(message){
   const response=await chrome.runtime.sendMessage(message);
@@ -46,7 +47,7 @@ async function refresh(){
   clearSummary();const request=sequence;
   loading=true;$('refresh-library').disabled=true;$('library-status').textContent='Cargando resúmenes…';
   try{
-    const next=await chooseProvider(),catalog=await next.list();
+    const next=await chooseProvider(),catalog=await (T?T.bounded(next.list()):next.list());
     if(request!==sequence || activeView!=='library')return;
     if(!catalog.available)throw Error('Conecta tu carpeta Pacientes de Drive.');
     if(catalog.version!==1 || !Array.isArray(catalog.patients))throw Error('Biblioteca no compatible.');
@@ -68,7 +69,7 @@ function selectPatient(patient){
 async function readSummary(document){
   clearSummary();const turn=sequence,patient=selected;$('summary-status').textContent='Cargando…';
   try{
-    const result=await provider.read(document.id,document.sha256);
+    const result=await (T?T.bounded(provider.read(document.id,document.sha256)):provider.read(document.id,document.sha256));
     if(turn!==sequence || selected!==patient || activeView!=='library')return;
     const identity=C.documentIdentity(result.text,patient.name);
     if(result.id!==document.id || result.sha256!==document.sha256 || identity.rut!==patient.rut || !C.sameName(identity.name,patient.name))throw Error('La identidad del resumen no coincide.');
@@ -84,7 +85,7 @@ $('copy-summary').addEventListener('click',async()=>{
   const document=selectedDocument,patient=selected,turn=sequence;
   if(!C.canCopy(document)||!patient)return;$('copy-summary').disabled=true;$('copy-status').textContent='Comprobando…';
   try{
-    const result=await provider.read(document.id,document.sha256);
+    const result=await (T?T.bounded(provider.read(document.id,document.sha256)):provider.read(document.id,document.sha256));
     if(turn!==sequence || selected!==patient)return;
     const identity=C.documentIdentity(result.text,patient.name);
     if(result.id!==document.id || result.sha256!==document.sha256 || identity.rut!==patient.rut || !C.sameName(identity.name,patient.name) || !C.canCopy(result))throw Error('El resumen cambió. Actualiza la lista.');
@@ -110,3 +111,18 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)listView();
 chrome.tabs?.onActivated?.addListener(()=>{if(activeView==='library')listView();});
 window.addEventListener('pagehide',clearSummary);
 if(new URLSearchParams(location.search).get('view')==='library')switchView('library');
+let healthBusy=false;
+async function refreshWorker(){
+ if(!T||healthBusy||document.hidden)return;healthBusy=true;
+ try{
+  try{
+   const local=await bridge({type:'nexo.worker.health'});
+   if(local.app==='laboratorios-descargas'&&local.version===1&&local.queue&&local.worker?.running){$('worker-status').textContent=local.worker.drive?'Mini disponible':'Mini · Drive pendiente';return;}
+  }catch(_){/* En el Air se comprueba la señal de Drive. */}
+  const inbox=await T.connection('inbox');
+  if(!inbox||await inbox.queryPermission({mode:'read'})!=='granted'){$('worker-status').textContent='Mini · sin comprobar';return;}
+  $('worker-status').textContent=T.worker(await T.read(inbox,'worker.json')).label;
+ }catch(_){$('worker-status').textContent='Mini · sin señal reciente';}
+ finally{healthBusy=false;}
+}
+if(T){void refreshWorker();const healthTimer=setInterval(refreshWorker,30000);window.addEventListener('pagehide',()=>clearInterval(healthTimer));}
