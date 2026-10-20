@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFile} from 'node:fs/promises';
 const code=await readFile(new URL('../../chrome-bridge/eloisa_panel.js',import.meta.url),'utf8');
-function setup({origin='https://clinicohangaroa.eloisa.cl',path='/main',frame=false}={}){
- const nodes=[],messages=[],observers=[],events={},location={origin,pathname:path};let version='3.4.0';
+function setup({origin='https://clinicohangaroa.eloisa.cl',path='/main',frame=false,deferred=false}={}){
+ const nodes=[],messages=[],observers=[],frames=[],events={},location={origin,pathname:path};let version='3.4.0';
  class Element{
   constructor(tag){this.tag=tag;this.children=[];this.events={};this.isConnected=false;nodes.push(this);}
   append(...children){for(const node of children){this.children.push(node);node.isConnected=true;}}
@@ -12,9 +12,9 @@ function setup({origin='https://clinicohangaroa.eloisa.cl',path='/main',frame=fa
  const document={createElement:tag=>new Element(tag),getElementById:id=>nodes.find(node=>node.id===id&&node.isConnected),documentElement:new Element('html')};
  const window={addEventListener:(name,fn)=>events[name]=fn,removeEventListener:name=>delete events[name]};window.top=frame?{}:window;
  const ctx={document,window,location,chrome:{runtime:{getManifest:()=>({version}),sendMessage:async message=>{messages.push(message);return {ok:true};}}},
-  MutationObserver:class{constructor(fn){this.fn=fn;observers.push(this);}observe(){}disconnect(){this.disconnected=true;}},requestAnimationFrame:fn=>fn()};
+  MutationObserver:class{constructor(fn){this.fn=fn;observers.push(this);}observe(){}disconnect(){this.disconnected=true;}},requestAnimationFrame:fn=>deferred?frames.push(fn):fn()};
  vm.createContext(ctx);const run=()=>vm.runInContext(code,ctx);run();
- return {nodes,messages,events,location,observers,run,setVersion:v=>version=v,host:()=>document.getElementById('nexo-clinical-panel-host'),button:()=>nodes.find(n=>n.tag==='button')};
+ return {nodes,messages,events,location,observers,frames,run,setVersion:v=>version=v,host:()=>document.getElementById('nexo-clinical-panel-host'),button:()=>nodes.find(n=>n.tag==='button')};
 }
 test('el botón aparece una sola vez y solo en el portal oficial principal',()=>{
  const ui=setup();assert.ok(ui.host());ui.run();assert.equal(ui.observers.length,1);
@@ -33,4 +33,9 @@ test('al actualizar se retira el observador anterior, sin duplicar el círculo',
 test('pulsar sólo pide abrir el panel y no transmite datos de la ficha',async()=>{
  const ui=setup();await ui.button().events.click();
  assert.equal(JSON.stringify(ui.messages),JSON.stringify([{type:'nexo.panel.open'}]));
+});
+test('un render pendiente no resucita el botón de una versión retirada',()=>{
+ const ui=setup({deferred:true}),old=ui.host();ui.observers[0].fn();
+ ui.setVersion('3.4.1');ui.run();const current=ui.host();ui.frames.shift()();
+ assert.equal(old.isConnected,false);assert.equal(ui.host(),current);
 });
