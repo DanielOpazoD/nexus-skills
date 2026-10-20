@@ -22,6 +22,12 @@ El registro está en `.entregas/registro.json` dentro de los datos del trabajo; 
 
 Para un formato adicional ya redactado, usar su ID de modelo en `kind`, un archivo TXT/DOCX/PDF dentro del trabajo, con nombre que incluya su fecha DD-MM-AAAA e identidad en el encabezado. Comparte revisión, referencias y registro; no sustituye el basal. Una plantilla institucional pendiente deja ese producto pendiente y permite completar el resto.
 
+## Variantes nominales cotejadas
+
+`patientName=null` con archivos puede indicar nombres distintos o abreviados entre fuentes. No inventar identidad ni unir por parecido. Codex coteja los encabezados **del paciente**, RUT completo y variantes en los documentos ya autorizados. Si acredita la correspondencia, registrar una revisión explícita: JSON con `version:1`, `jobId`, `rut`, `evidenceRevision` actual, `name` presente en las fuentes, `reason` explicando el cotejo, `confirmed:true` y `anchor:{path,sha256,pages:[1]}` de un PDF cuyo encabezado adyacente `Paciente` + `RUT/RUN` identifique ese nombre y RUT.
+
+Enviar con `scripts/register_delivery.py --review-identity RUTA.json`, sin modificar la cola ni los documentos. Se conserva en `.entregas/identidades/`, vinculada a los bytes y cobertura actuales; nueva evidencia la invalida. El programa vuelve a comprobar el encabezado y rechaza RUT bajo otro rol, referencia ajena, nombre no acreditado o revisión antigua. Obtener otra vez `/api/delivery` para redactar/registrar con la nueva revisión. Si la identidad no se resuelve, conservar el borrador local y el resto de la entrega e informar el pendiente; no forzar `archived`.
+
 ## Vista vigente
 
 `Control y trazabilidad/Entregas vigentes.json` selecciona explícitamente una copia por producto. Regla: mayor fecha de referencia `asOf`; en empate, solicitud creada más recientemente; dentro del mismo trabajo, última revisión registrada y verificada. Volver a archivar una solicitud antigua conserva una copia histórica y no desplaza la actual. Los PDF integrados de cada fuente usan la misma regla. Un período más corto o cobertura parcial no se oculta: conserva su alcance y rótulo correspondiente.

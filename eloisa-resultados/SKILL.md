@@ -7,7 +7,7 @@ description: Seleccionar pacientes desde la agenda por fecha y buscar atenciones
 
 Aplicar el [contrato común](../laboratorios-descargas/references/verificacion.md) y ejecutar con [laboratorios-descargas](../laboratorios-descargas/SKILL.md), también para un paciente. El contrato define identidad, entrega parcial, reporte y archivo.
 
-Portal: `https://clinicohangaroa.eloisa.cl/`. Chrome personal `d.opazo.damiani@gmail.com`, ubicación `Hangaroa`; usar autocompletado autorizado sin extraer contraseñas.
+Portal: `https://clinicohangaroa.eloisa.cl/`. Chrome personal `d.opazo.damiani@gmail.com`, ubicación `hangaroa`; usar autocompletado autorizado sin extraer contraseñas.
 
 - Entrada: RUT con dígito verificador; fuente `eloisa`. `--eloisa-scope medicos|todos`; usar `todos` para todas las atenciones y declarar cualquier filtro médico.
 - Modo preferido: **API JSON** mediante el cliente y puente existentes; Chrome para autenticar/renovar sesión o contrastar la ficha.
@@ -37,10 +37,12 @@ Vincular maestro RUT/IdUsuario → atención → adjunto; comprobar nombre y RUT
 
 El usuario informó que entrar a Eloísa desde otro computador puede cerrar la sesión del Mac mini y mostrar “actividad anormal” o “actividad inusual”. Ante ese aviso, cierre de sesión, retorno al login o token vencido, tratar primero el caso como sesión invalidada; no como ausencia de atenciones ni como contraseña incorrecta sin evidencia.
 
-1. Conservar documentos y `avance.json`. Volver al login de Eloísa en el perfil personal del equipo que está consultando (Air o Mini), seleccionar `Hangaroa` cuando corresponda y enviar el formulario con el autocompletado autorizado. **No pedir permiso de nuevo para este inicio de sesión ni extraer la contraseña.**
+1. Conservar documentos y `avance.json`. Volver al login de Eloísa en el perfil personal del equipo que está consultando (Air o Mini). Cerrar los avisos y **recargar el formulario de login**; escribir ubicación `hangaroa` y dejar que Chrome vuelva a autocompletar usuario y clave en ese formulario nuevo. No reutilizar ciegamente los valores de un formulario que ya falló, copiar la clave ni modificarla para provocar eventos. Enviar una vez el formulario recién autocompletado. **No pedir permiso de nuevo para este inicio de sesión ni extraer la contraseña.**
 2. Comprobar acceso autenticado real; obtener una sesión nueva mediante el puente disponible y reanudar con el avance original. Reutilizar documentos verificados y comprobar otra vez la identidad del paciente al retomar. No seguir enviando el token inválido.
 3. Si un nuevo inicio no permite acceder o reaparece el aviso, detener el bucle de reintentos. Si falta autocompletado, hay CAPTCHA, segundo factor o bloqueo persistente, dejar la pantalla para intervención del usuario y comunicar el paso concreto. Continuar las demás fuentes autorizadas y entregar lo verificado.
 
 Este aviso es una señal para intentar reautenticación, no una certeza sobre su causa. No desactivar controles de seguridad ni borrar perfiles/cookies para evitarlo.
+
+Comprobado el 20-10-2026: el formulario anterior devolvía «No es posible validar al Usuario»; recargarlo, usar `hangaroa` y esperar un autocompletado nuevo permitió recuperar la cuenta y consultar la agenda. No demuestra que la causa fuera la otra sesión abierta ni solo el uso de mayúsculas. El control nativo estaba bloqueado, pero el autocompletado del formulario nuevo funcionó por el navegador; no exigir desbloquear el Mac si ese flujo ya permite entrar.
 
 Al cerrar la orden, incluir el [resumen numerado de fuentes](../laboratorios-descargas/references/cierre-fuentes.md) en respuesta y TXT, también si esta es la única fuente o queda parcial. No consultar fuentes adicionales para completar ese bloque.

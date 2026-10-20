@@ -7,9 +7,9 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-def submit(data, port=8765):
+def submit(data, port=8765, *, identity=False):
     base = f'http://127.0.0.1:{port}'
-    request = Request(base+'/api/delivery/register', data=json.dumps(data).encode(),
+    request = Request(base+('/api/identity/review' if identity else '/api/delivery/register'), data=json.dumps(data).encode(),
                       headers={'Origin':base,'Content-Type':'application/json'})
     try:
         with urlopen(request, timeout=60) as response:
@@ -26,9 +26,10 @@ def main():
     from clinical_request import decode_json
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('file', type=Path)
+    parser.add_argument('--review-identity',action='store_true',help='Registrar cotejo explícito de variantes nominales con encabezado PDF y huella vigentes.')
     args = parser.parse_args()
     try:
-        print(json.dumps(submit(decode_json(args.file.read_text())), ensure_ascii=False))
+        print(json.dumps(submit(decode_json(args.file.read_text()),identity=args.review_identity), ensure_ascii=False))
     except (OSError, ValueError) as error:
         parser.error(str(error))
 

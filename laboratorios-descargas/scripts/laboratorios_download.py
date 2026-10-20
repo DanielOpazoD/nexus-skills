@@ -856,7 +856,11 @@ class Adapter:
             return self.client.search(rut, self.period, self.today)
         if self.source == 'mmrad':
             return self.client.search(rut, getattr(self, 'period', None), getattr(self, 'today', None), reports_only=True)
-        return self.client.search(rut.split('-')[0] if self.source == 'syslab' else rut)
+        if self.source == 'syslab':
+            # The portal searches by body only; PDF/cache identity remains the
+            # validated full RUT of the request, including its check digit.
+            return [dict(exam, rut=rut) for exam in self.client.search(rut.split('-')[0])]
+        return self.client.search(rut)
 
     def download(self, exam):
         download=lambda:self.client.request(exam['url'],pdf=True) if self.source=='syslab' else self.client.download(exam)

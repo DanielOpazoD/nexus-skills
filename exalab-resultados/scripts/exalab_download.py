@@ -4,6 +4,7 @@ import argparse
 import calendar
 from datetime import date, datetime, timedelta
 from html.parser import HTMLParser
+from html import unescape
 from http.cookiejar import Cookie, CookieJar
 import ipaddress
 import json
@@ -131,7 +132,15 @@ def parse_exams(html, rut):
             raise ExalabError('No se pudo verificar la fecha del folio.') from None
         key = (source, folio)
         exams[key] = {'id': folio, 'rut': rut, 'datetime': stamp, 'name': cells[5], 'source': source}
-    if not exams and not re.search(r'(sin\s+(?:resultados|registros|folios)|no\s+(?:se\s+)?(?:encontr|exist)|0\s+(?:registros|folios))', html, re.I):
+    # Authenticated consulta.php can return its full empty table template,
+    # without a textual "sin resultados" message. Accept only that exact
+    # heading/header and no data rows; arbitrary HTML/errors still fail closed.
+    header=['Num','N Examen','Fecha','Hora','Rut','Nombre','Laboratorio/Procedencia','Examenes']
+    visible=' '.join(unescape(re.sub(r'<[^>]*>', ' ', html)).split())
+    empty_table=(len(parser.rows)==1 and not parser.rows[0]['onclick'] and
+                 [' '.join(c.split()) for c in parser.rows[0]['cells']]==header and
+                 visible=='Folios Asociados '+' '.join(header))
+    if not exams and not empty_table and not re.search(r'(sin\s+(?:resultados|registros|folios)|no\s+(?:se\s+)?(?:encontr|exist)|0\s+(?:registros|folios))', html, re.I):
         raise ExalabError('No se reconoció la lista de resultados; comprueba la sesión en Chrome.')
     return list(exams.values())
 

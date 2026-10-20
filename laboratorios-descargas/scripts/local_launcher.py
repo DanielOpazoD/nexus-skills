@@ -264,7 +264,7 @@ class Handler(BaseHTTPRequestHandler):
                 'http://localhost:{}'.format(self.server.server_port)):
             self.send_json(403, {'error':'Origen no permitido.'})
             return
-        if path not in ('/api/jobs','/api/import','/api/sessions','/api/cancel','/api/credentials','/api/retry','/api/archive','/api/delivery/register','/api/library/open'):
+        if path not in ('/api/jobs','/api/import','/api/sessions','/api/cancel','/api/credentials','/api/retry','/api/archive','/api/delivery/register','/api/identity/review','/api/library/open'):
             self.send_json(404, {'error':'Ruta no disponible.'})
             return
         try:
@@ -295,6 +295,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = self.launcher.verify_archive(body.get('id'))
             elif path == '/api/delivery/register':
                 result = self.launcher.register_delivery(body)
+            elif path == '/api/identity/review':
+                result = self.launcher.review_identity(body)
             else:
                 self.launcher.cancel_waiting(body.get('id'))
                 result = {'ok':True}

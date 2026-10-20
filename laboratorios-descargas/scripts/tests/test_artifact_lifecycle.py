@@ -1,5 +1,6 @@
 """Recorrido clínico ficticio: parcial → TXT → archivo → reinicio → actualización."""
 import copy
+import io
 import json
 import sys
 import tempfile
@@ -18,6 +19,58 @@ from clinical_publication import publish
 from local_launcher import SERVICES
 from test_access import DAY, Fake, RUT
 from test_regression_workflow import Cloud, Keychain, wait_for
+from reportlab.pdfgen.canvas import Canvas
+
+
+class IdentityReviewTests(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
+    def tearDown(self):self.temp.cleanup()
+    def case(self,role='Paciente',anchor_rut=RUT):
+        files=[];rows=[]
+        for source,name in (('eloisa','Paciente Ficticio Completo'),('syslab','Ficticio Paciente')):
+            out=io.BytesIO();canvas=Canvas(out)
+            canvas.drawString(30,800,(role if source=='eloisa' else 'Paciente')+': '+name)
+            canvas.drawString(30,780,'RUN: '+(anchor_rut if source=='eloisa' else RUT));canvas.save()
+            path=self.root/(source+'.pdf');path.write_bytes(out.getvalue())
+            ref={'rut':RUT,'path':str(path.resolve()),'sha256':digest(path),'source':source}
+            files.append(ref);rows.append({'rut':RUT,'source':source,'status':'complete','errors':[],
+                                           'patient_name':name,'file_manifest':[ref]})
+        job={'id':'fixture-job','ruts':[RUT],'work_output':str(self.root),'as_of':DAY.isoformat(),
+             'selected':['eloisa','syslab'],'period':'3m','files':files,'summary':rows}
+        snapshot=artifacts.evidence(job,RUT)
+        review={'version':1,'jobId':job['id'],'rut':RUT,'evidenceRevision':snapshot['revision'],
+                'name':'Paciente Ficticio Completo','reason':'Cotejo ficticio del encabezado del paciente y RUT en ambas fuentes.',
+                'confirmed':True,'anchor':{**{k:files[0][k] for k in ('path','sha256')},'pages':[1]}}
+        return job,review
+    def test_conflicting_names_need_explicit_bound_review_and_replay_is_idempotent(self):
+        job,review=self.case();self.assertIsNone(artifacts.evidence(job,RUT)['name'])
+        self.assertFalse(artifacts.record_identity_review(job,review)['reused'])
+        snapshot=artifacts.evidence(job,RUT)
+        self.assertEqual(snapshot['name'],review['name']);self.assertNotEqual(snapshot['revision'],review['evidenceRevision'])
+        self.assertTrue(artifacts.record_identity_review(job,review)['reused'])
+        path=Path(job['files'][1]['path']);path.write_bytes(path.read_bytes()+b'\nchanged')
+        job['files'][1]['sha256']=digest(path)
+        self.assertIsNone(artifacts.evidence(job,RUT)['name'])
+    def test_wrong_patient_role_or_rut_cannot_resolve_names(self):
+        for role,rut in (('Medico',RUT),('Paciente','22222222-2')):
+            job,review=self.case(role,rut)
+            with self.assertRaises(ValueError):artifacts.record_identity_review(job,review)
+            self.assertIsNone(artifacts.evidence(job,RUT)['name'])
+    def test_review_rejects_stale_foreign_unknown_name_and_unconfirmed_inputs(self):
+        job,review=self.case()
+        for changed in ({'jobId':'foreign'},{'evidenceRevision':'0'*64},{'name':'Otra Persona'},{'name':[]},{'version':True},
+                        {'confirmed':False},{'extra':True},{'anchor':dict(review['anchor'],path='/tmp/foreign.pdf')},
+                        {'anchor':dict(review['anchor'],pages=[2])},{'anchor':dict(review['anchor'],pages=[True])}):
+            with self.subTest(changed=changed),self.assertRaises(ValueError):
+                artifacts.record_identity_review(job,dict(review,**changed))
+        self.assertIsNone(artifacts.evidence(job,RUT)['name'])
+    def test_review_cannot_read_outside_its_work_area_or_through_a_link(self):
+        job,review=self.case();folder=self.root/'.entregas';folder.mkdir()
+        (folder/'identidades').symlink_to(self.root,target_is_directory=True)
+        with self.assertRaises(ValueError):artifacts.record_identity_review(job,review)
+        for revision in ('../foreign','../../data.json',None):
+            with self.assertRaises(ValueError):artifacts.identity_review_path(job,RUT,revision)
 
 
 class ArtifactTests(unittest.TestCase):
@@ -74,7 +127,10 @@ class ArtifactTests(unittest.TestCase):
         self.assertTrue(old_files.issubset({f['sha256'] for f in complete['files']}))
         self.assertEqual(complete['artifacts'][0]['status'],'stale')
         self.assertEqual(digest(complete['artifacts'][0]['artifact']['path']),sha)
-        self.assertEqual(q.library().list()['patients'][0]['documents'][0]['status'],'stale')
+        # Source completion and Drive publication are independent stages.
+        # Wait for the archive worker rather than racing its final copy.
+        library_stale=wait_for(lambda:next((p for p in q.library().list()['patients'][0]['documents'] if p['status']=='stale'),None))
+        self.assertEqual(library_stale['status'],'stale')
         with self.assertRaises(ValueError):q.register_delivery(draft)
         updated = self.draft(q.jobs[request['id']])
         Path(updated['path']).write_text(Path(updated['path']).read_text()+'Epicrisis registrada el 15-10-2026.\n')
