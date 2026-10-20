@@ -1,10 +1,18 @@
 {
-  "version": 1,
+  "version": 3,
+  "baseline": {
+    "id": "antecedentes",
+    "required": true,
+    "skill": "resumen-antecedentes",
+    "mode": "codex",
+    "filename": "{date} Resumen antecedentes.txt",
+    "supportFilename": "{date} Sustento Resumen antecedentes.txt"
+  },
   "models": [
     {
       "id": "documents",
-      "label": "Solo descargar archivos",
-      "version": 1,
+      "label": "Sin formato adicional",
+      "version": 2,
       "template_status": "not_required"
     },
     {
@@ -17,7 +25,8 @@
       "id": "telemedicina-reumatologia",
       "label": "Telemedicina · Reumatología",
       "version": 1,
-      "template_status": "pending"
+      "template_status": "available",
+      "skill": "telereumatologia"
     },
     {
       "id": "telemedicina-gastroenterologia",

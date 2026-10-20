@@ -1,17 +1,14 @@
 const $ = id => document.getElementById(id);
 const form = $('request-form');
-const labels = {syslab:'Syslab',exalab:'Exalab',eloisa:'Eloísa Ambulatorio',mmrad:'MMRAD',his:'HIS',rayen:'Eloísa Hospitalizados',email:'Correo',mmrad_images:'Imágenes MMRAD'};
+const labels = {...ClinicalCatalog.sources,mmrad_images:'Imágenes MMRAD'};
 let submitting = false, bridgeVersion = 0;
 function selectedSources() { return Array.from(form.querySelectorAll('input[name="source"]:checked'),input => input.value); }
-const periods = [
-  {value:'30d',label:'Últimos 30 días',days:30}, {value:'3m',label:'Últimos 3 meses',months:3}, {value:'6m',label:'Últimos 6 meses',months:6},
-  {value:'1y',label:'Último año',months:12}, {value:'2y',label:'Últimos 2 años',months:24},
-  {value:'5y',label:'Últimos 5 años',months:60}, {value:'10y',label:'Últimos 10 años',months:120}
-];
+const periods = ClinicalCatalog.periods.filter(period => period.value !== 'latest');
 function patientSelection() {
   const all = [...new Set(form.elements.ruts.value.split(/[\s,;]+/).filter(Boolean).map(x => x.replace(/\./g,'').toUpperCase()))];
   const valid = all.filter(rut => {
-    if (!/^\d{1,8}-[0-9K]$/.test(rut)) return false;
+    const {minDigits,maxDigits} = ClinicalCatalog.identity;
+    if (!new RegExp(`^\\d{${minDigits},${maxDigits}}-[0-9K]$`).test(rut)) return false;
     const [body,digit] = rut.split('-');
     let sum = 0;
     [...body].reverse().forEach((n,i) => { sum += Number(n) * (2 + i % 6); });
@@ -61,8 +58,8 @@ function sourcePeriods() {
     .map(source => [source,customPeriods[source]]).filter(([,period]) => period !== currentPeriod().value));
 }
 function updateSourcePeriods(selected) {
-  const allPeriods = [...periods,{value:'latest',label:'Último registro'}];
-  const shortLabels = ['30 días','3 meses','6 meses','1 año','2 años','5 años','10 años','Último'];
+  const allPeriods = ClinicalCatalog.periods;
+  const shortLabels = allPeriods.map(period => period.short);
   for (const source of ['syslab','exalab','eloisa','his','rayen','mmrad','email']) {
     const custom = Object.hasOwn(customPeriods,source), enabled = selected.includes(source);
     const slider = form.querySelector(`[data-source-period="${source}"]`);
@@ -127,16 +124,16 @@ function updateFields() {
   updateSourcePeriods(selected);
   $('summary-delivery').textContent = form.elements.deliveryModel.selectedOptions[0].textContent;
   $('delivery-summary').textContent = form.elements.deliveryModel.value === 'documents' ? 'Opcional' : form.elements.deliveryModel.selectedOptions[0].textContent;
-  $('template-state').hidden = ['documents','custom'].includes(form.elements.deliveryModel.value);
+  $('template-state').hidden = ClinicalCatalog.delivery.models.find(model => model.id === form.elements.deliveryModel.value)?.template_status !== 'pending';
   $('summary-periods').textContent = Object.entries(sourcePeriods()).map(([source,period]) => labels[source]+': '+([...periods,{value:'latest',label:'Último registro'}].find(p => p.value === period).label)).join(' · ');
   $('mmrad-error').hidden = !mmrad || !imaging.empty;
   for (const box of form.querySelectorAll('[data-group]')) {
     const names = box.dataset.group.split(','), count = names.filter(x => selected.includes(x)).length;
     box.checked = count === names.length;box.indeterminate = count>0 && count<names.length;
   }
-  const invalid = patients.invalid || patients.all.length>200;
+  const invalid = patients.invalid || patients.all.length>ClinicalCatalog.identity.maxPatients;
   form.elements.ruts.setAttribute('aria-invalid',String(Boolean(invalid)));
-  $('rut-status').textContent = patients.all.length>200 ? 'Máximo 200 pacientes' : patients.invalid ? `${patients.invalid} RUT no válido(s)` : patients.valid.length ? `${patients.valid.length} paciente(s)` : 'Sin pacientes';
+  $('rut-status').textContent = patients.all.length>ClinicalCatalog.identity.maxPatients ? `Máximo ${ClinicalCatalog.identity.maxPatients} pacientes` : patients.invalid ? `${patients.invalid} RUT no válido(s)` : patients.valid.length ? `${patients.valid.length} paciente(s)` : 'Sin pacientes';
   $('rut-status').classList.toggle('field-error',Boolean(invalid));
   $('source-count').textContent = `${selected.length} de 7 fuentes seleccionadas`;
   $('summary-patients').textContent = patients.valid.length ? String(patients.valid.length) : '—';
@@ -170,7 +167,7 @@ form.addEventListener('change',updateFields);
 
 function requestSelection() {
   const selected = selectedSources(), patients = patientSelection(), imaging = mmradSelection();
-  if (!patients.valid.length || patients.invalid || patients.all.length > 200) throw new Error('Revisa los RUT de los pacientes.');
+  if (!patients.valid.length || patients.invalid || patients.all.length > ClinicalCatalog.identity.maxPatients) throw new Error('Revisa los RUT de los pacientes.');
   if (!selected.length) throw new Error('Selecciona al menos una fuente.');
   if (selected.includes('mmrad') && imaging.empty) throw new Error('Selecciona qué descargar de MMRAD.');
   const contents = sourceContent();

@@ -21,6 +21,21 @@ class Fake:
   return [exam()]
  def download(self,e):return pdf(self.source,e['id'])
 class Tests(unittest.TestCase):
+ def test_reading_copy_is_newest_first_and_named_by_included_dates(self):
+  class Visits(Fake):
+   def search(self,rut):
+    return [dict(exam('1'),datetime=datetime(2026,3,12)),
+            dict(exam('2'),datetime=datetime(2026,9,4))]
+  with tempfile.TemporaryDirectory() as out:
+   row=l.run_batch([RUT],'eloisa','1y',DAY,out,{'eloisa':Visits()})['results'][0]
+   self.assertEqual(row['status'],'complete')
+   reading=Path(row['reading_pdf']);self.assertEqual(reading.name,'Eloisa ambulatorio Marzo-Sept 2026.pdf')
+   reader=l.pdf_library()[0](io.BytesIO(reading.read_bytes()))
+   self.assertEqual(len(reader.pages),2)
+   self.assertIn('ID de atención: 2',reader.pages[0].extract_text())
+   self.assertIn('ID de atención: 1',reader.pages[1].extract_text())
+   self.assertEqual(l.reading_pdf_stem('syslab',[datetime(2026,3,1),datetime(2026,9,1)]),'LAB HHR Marzo-Sept 2026')
+   self.assertEqual(l.reading_pdf_stem('exalab',[datetime(2025,12,1),datetime(2026,1,1)],True),'LAB HDS Diciembre 2025-Enero 2026 - PARCIAL')
  def test_retry_after_and_no_auth_retry(self):
   class Opener:
    def __init__(self,code):self.n=0;self.code=code

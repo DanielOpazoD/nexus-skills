@@ -18,7 +18,7 @@ Ejemplo **ficticio**, fragmento:
 [ ] 7. Correo institucional — pendiente · cuenta aún no conectada
 ```
 
-Declarar paciente/RUT y fecha de referencia al inicio. Si sólo se revisaron archivos existentes, usar «revisión de archivos» y «portal no consultado», sin atribuir una búsqueda nueva. Indicar filtros contenidos/productos aplicados y cobertura por nombre/RUT del correo cuando sea relevante. Documentos guardados y documentos efectivamente leídos son recuentos distintos. Citas clínicas siguen el formato `[S1, p. 2]`; estos corchetes son únicamente el cierre operativo.
+Declarar paciente/RUT y fecha de referencia al inicio. Si sólo se revisaron archivos existentes, usar «revisión de archivos» y «portal no consultado», sin atribuir una búsqueda nueva. Indicar filtros contenidos/productos aplicados y cobertura por nombre/RUT del correo cuando sea relevante. Documentos guardados y documentos efectivamente leídos son recuentos distintos. Las citas clínicas siguen `[S1, p. 2]` salvo telereumatología, cuyo cuerpo no las muestra y cuyo TXT separado agrupa observaciones y fuentes; los corchetes de este bloque son únicamente el cierre operativo.
 
 ## Programa
 
@@ -26,4 +26,4 @@ Declarar paciente/RUT y fecha de referencia al inicio. Si sólo se revisaron arc
 
 Para regenerar desde un resumen JSON válido: `python3 scripts/clinical_receipt.py RESUMEN.json --output OUTPUT`. Leer el bloque y enlazar el TXT en la respuesta. Para una orden ejecutada fuera del motor, construir el bloque con evidencia observada y guardarlo en la carpeta de trabajo; no fabricar un JSON de descarga completa. En reanudaciones, entregar el último cierre y conservar los anteriores como versiones, sin atribuirles vigencia actual.
 
-Archivo: raíz del expediente por nombre junto a los resúmenes. Si aún falta nombre verificado, conservar el cierre local y copiar a `Documentos generales/Cierres pendientes de identificar/`, sin crear una carpeta por RUT ni inventar identidad. Cuando se identifique, copiar el último cierre al expediente; no mover documentos por similitud de nombres. La copia SHA-256 y la subida a Drive se comprueban por separado; este bloque no certifica la sincronización. Informar en la respuesta el estado de copia/nube conocido y pendientes.
+Archivo: `Pacientes/Nombre/Control y trazabilidad/`, junto al estado y observaciones documentales; nunca en `Lectura y entregas/`. Si aún falta nombre verificado, conservar el cierre local y copiar a `Documentos generales/Control y trazabilidad/Cierres pendientes de identificar/`, sin crear una carpeta por RUT ni inventar identidad. Cuando se identifique, copiar el último cierre al expediente; no mover documentos por similitud de nombres. La copia SHA-256 y la subida a Drive se comprueban por separado; este bloque no certifica la sincronización. Informar en la respuesta el estado de copia/nube conocido y pendientes.

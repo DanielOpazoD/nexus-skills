@@ -1,11 +1,14 @@
 """Identidad y alcance del encargo; sin motor, red, sesiones ni escritura."""
 from pathlib import Path
 import re
+import json
 from clinical_content import normalize_source_content
 from mmrad_selection import normalize_image_types
 
-PERIODS = ('30d', '3m', '6m', '1y', '2y', '5y', '10y', 'latest')
-SOURCE_ORDER = ('syslab', 'exalab', 'eloisa', 'mmrad', 'his', 'rayen', 'email')
+CATALOG = json.loads((Path(__file__).resolve().parents[1]/'assets/clinical_catalog.json').read_text())
+PERIODS = tuple(item['value'] for item in CATALOG['periods'])
+SOURCE_ORDER = tuple(CATALOG['sources'])
+IDENTITY = CATALOG['identity']
 
 
 def selected_sources(source):
@@ -30,7 +33,7 @@ def normalize_ruts(ruts):
         if not isinstance(value, str):
             raise LabsError('RUT inválido.')
         value = value.strip().replace('.', '').upper()
-        match = re.fullmatch(r'(\d{7,8})-([0-9K])', value)
+        match = re.fullmatch(r'(\d{'+str(IDENTITY['minDigits'])+','+str(IDENTITY['maxDigits'])+r'})-([0-9K])', value)
         if not match:
             raise LabsError('Ingresa el RUT con dígito verificador y guion.')
         body, digit = match.groups()

@@ -18,6 +18,6 @@ Abrir con fecha/alcance de la agenda. Mantener un bloque por paciente y el mismo
 
 ## Estado de búsqueda y archivo
 
-El estado operativo acompaña el reporte o se guarda como `Estado de descargas - DD-MM-AAAA.txt`. Incluir paciente verificado, fecha de ejecución, fuentes/período, registros encontrados/verificados/pendientes si se conocen, motivo de cada pendiente, ubicación de archivos y sincronización confirmada o pendiente.
+Guardar el estado operativo como `Control y trazabilidad/Estado de descargas - DD-MM-AAAA.txt`, fuera del material clínico de `Lectura y entregas`. Incluir paciente verificado, fecha de ejecución, fuentes/período, registros encontrados/verificados/pendientes si se conocen, motivo de cada pendiente, ubicación de archivos y sincronización confirmada o pendiente.
 
 “Sin registros en el período” exige consulta exitosa. “No consultado”, “no disponible” y “autenticación pendiente” conservan significados distintos. El estado operativo no es un diagnóstico ni una afirmación de historia clínica completa.

@@ -33,7 +33,7 @@
 <div id="agenda-panel" hidden><div class="agenda-controls"><label>Fecha de agenda<input id="agenda-date" type="date"></label><button id="agenda-load" type="button" class="text-button">Cargar agenda</button></div><small id="agenda-identity">Mi agenda · sesión de Eloísa de este equipo</small><p id="agenda-help" class="field-status">Abre este formulario desde la extensión de Chrome o actualiza el puente a versión 3.</p><p id="agenda-status" class="field-status" role="status" aria-live="polite"></p><div id="agenda-results" hidden><label class="agenda-select-all"><input id="agenda-all" type="checkbox">Seleccionar todos</label><div id="agenda-rows" class="agenda-rows"></div><button id="agenda-apply" type="button" class="text-button" disabled>Agregar seleccionados</button></div></div>
 <span id="rut-status" class="field-status" role="status">Sin pacientes</span></section>
 <section class="panel period-panel"><div class="section-heading"><h2>Período</h2><output id="period-label" for="period-range">Último año</output><button id="apply-period-all" class="text-button" type="button">Aplicar a todas</button></div><label class="sr-only" for="period-range">Período general</label><input type="range" id="period-range" min="0" max="6" step="1" value="3" aria-describedby="date-window"><div class="period-stops"><button type="button" data-period="0">30 d</button><button type="button" data-period="1">3 m</button><button type="button" data-period="2">6 m</button><button type="button" data-period="3">1 a</button><button type="button" data-period="4">2 a</button><button type="button" data-period="5">5 a</button><button type="button" data-period="6">10 a</button></div><div class="period-footer"><span id="date-window"></span><label class="latest-choice"><input type="checkbox" id="latest-only">Último registro</label></div><input type="hidden" name="period" value="1y"></section>
-<details class="panel optional-delivery"><summary>Formato de entrega <span id="delivery-summary">Opcional</span></summary><label for="delivery-model" class="sr-only">Formato de entrega</label><select id="delivery-model" name="deliveryModel"><option value="documents">Solo descargar archivos</option><option value="epicrisis">Epicrisis</option><option value="telemedicina-reumatologia">Telemedicina · Reumatología</option><option value="telemedicina-gastroenterologia">Telemedicina · Gastroenterología</option><option value="evolucion-ambulatoria">Evolución · Eloísa ambulatoria</option><option value="evolucion-hospitalizados">Evolución · Hospitalizados</option><option value="custom">Libre</option></select><label id="custom-delivery" hidden><span class="sr-only">Describe la entrega</span><textarea name="deliveryInstructions" rows="3" maxlength="2000" placeholder="¿Qué necesitas recibir?"></textarea></label><p id="template-state" class="field-status" hidden>Plantilla pendiente</p></details>
+<details class="panel optional-delivery"><summary>Formato de entrega <span id="delivery-summary">Opcional</span></summary><label for="delivery-model" class="sr-only">Formato de entrega</label><select id="delivery-model" name="deliveryModel"><option value="documents">Sin formato adicional</option><option value="epicrisis">Epicrisis</option><option value="telemedicina-reumatologia">Telemedicina · Reumatología</option><option value="telemedicina-gastroenterologia">Telemedicina · Gastroenterología</option><option value="evolucion-ambulatoria">Evolución · Eloísa ambulatoria</option><option value="evolucion-hospitalizados">Evolución · Hospitalizados</option><option value="custom">Libre</option></select><label id="custom-delivery" hidden><span class="sr-only">Describe la entrega</span><textarea name="deliveryInstructions" rows="3" maxlength="2000" placeholder="¿Qué necesitas recibir?"></textarea></label><p id="template-state" class="field-status" hidden>Plantilla pendiente</p></details>
 <details class="panel file-options"><summary>Opciones de los archivos</summary><div class="checks"><label><input type="checkbox" name="merge">Agrupar PDF por paciente y fuente</label><label><input type="checkbox" name="patientMerge">Añadir PDF único por paciente</label></div></details>
 </div>
 <aside class="sources-panel panel" aria-labelledby="sources-title"><div class="section-heading"><h2 id="sources-title">Fuentes</h2><div><button type="button" id="select-all" class="text-button">Todas</button><button type="button" id="select-none" class="text-button">Ninguna</button></div></div><fieldset class="source-group"><legend><label><input type="checkbox" data-group="syslab,exalab" checked>Laboratorio</label></legend><div class="source-card" data-source-card="syslab">
@@ -55,29 +55,26 @@
 <div class="source-line"><label class="source-name"><input type="checkbox" name="source" value="mmrad" ><strong>MMRAD</strong></label><button class="source-period-button" type="button" data-period-toggle="mmrad" aria-expanded="false" aria-controls="source-period-mmrad"><span data-period-label="mmrad">1 año</span><span aria-hidden="true">⌄</span></button></div>
 <div class="source-period" id="source-period-mmrad" hidden><input type="range" min="0" max="7" step="1" value="3" data-source-period="mmrad" aria-label="Período MMRAD"><button type="button" class="text-button" data-reset-period="mmrad" hidden>Restablecer</button></div>
 </div></fieldset><fieldset id="mmrad-options" disabled hidden><legend class="sr-only">MMRAD: qué descargar</legend><label><input type="checkbox" name="mmradReports" checked>Informes TAC</label><label><input type="checkbox" name="mmradRadiographs" checked>Radiografías</label><small>Ecocardiograma: informe en adjuntos de Eloísa.</small></fieldset><p id="mmrad-error" class="field-error" hidden>Selecciona un tipo de descarga MMRAD.</p><fieldset class="source-group"><legend>Correspondencia</legend><div class="source-card" data-source-card="email"><div class="source-line"><label class="source-name"><input type="checkbox" name="source" value="email"><strong>Correo</strong><span class="mode-tag">Codex</span></label><button class="source-period-button" type="button" data-period-toggle="email" aria-expanded="false" aria-controls="source-period-email"><span data-period-label="email">1 año</span><span aria-hidden="true">⌄</span></button></div><div class="source-period" id="source-period-email" hidden><input type="range" min="0" max="7" step="1" value="3" data-source-period="email" aria-label="Período Correo"><button type="button" class="text-button" data-reset-period="email" hidden>Restablecer</button></div><small id="email-account" hidden>daniel.opazo@hospitalhangaroa.cl</small></div></fieldset><div class="upcoming-source"><span>Biopsias</span><span>Pendiente</span></div></aside>
-<div class="request-summary"><div><strong id="summary-delivery">Solo descargar archivos</strong><p><span id="summary-patients">—</span> paciente(s) · <span id="source-count">2 de 7 fuentes seleccionadas</span></p><div id="summary-periods"></div></div><p id="form-error" class="field-error" role="alert" hidden></p><button id="new-request" type="button" class="text-button" hidden>Nuevo pedido</button><div class="portable-actions"><button type="button" class="text-button" id="save-request" disabled>Guardar solicitud</button><button id="run" type="submit" disabled>Copiar solicitud <span aria-hidden="true">→</span></button></div></div>
+<div class="request-summary"><div><strong id="summary-delivery">Sin formato adicional</strong><p><span id="summary-patients">—</span> paciente(s) · <span id="source-count">2 de 7 fuentes seleccionadas</span></p><div id="summary-periods"></div></div><p id="form-error" class="field-error" role="alert" hidden></p><button id="new-request" type="button" class="text-button" hidden>Nuevo pedido</button><div class="portable-actions"><button type="button" class="text-button" id="send-drive" disabled>Enviar a Drive</button><button type="button" class="text-button" id="save-request" disabled>Guardar solicitud</button><button id="run" type="submit" disabled>Copiar para Codex <span aria-hidden="true">→</span></button></div></div>
 <div hidden><span id="summary-period"></span><div id="summary-sources"></div><span id="summary-images"></span><span id="bridge-status"></span><span id="extension-path"></span></div>
 </form>
-<p class="portable-note">Copia y pega en Codex del Mac mini, o guarda la solicitud para trasladarla por Drive.</p>
+<p class="portable-note">Envía a la carpeta «_Solicitudes Nexo» de Google Drive. El Mac mini confirma la recepción en «acuses».</p>
 <p id="copy-status" role="status" aria-live="polite"></p>
 <details id="request-preview" class="panel portable-output"><summary>Ver solicitud</summary><textarea id="request-text" rows="8" readonly aria-label="Solicitud para Codex"></textarea></details>
 </main><script>// Generado desde clinical_catalog.json; ejecutar build_portable_form.py.
-globalThis.ClinicalCatalog={"version":1,"packetVersion":4,"content":{"eloisa":[{"id":"medical","label":"Evoluciones médicas","default":true},{"id":"other","label":"Otros profesionales","default":false},{"id":"prescriptions","label":"Recetas","default":true},{"id":"referrals","label":"Interconsultas","default":true},{"id":"attachments","label":"Documentos adjuntos","default":true,"since":4}],"rayen":[{"id":"epicrisis","label":"Epicrisis médica","default":true},{"id":"record","label":"Ficha clínica completa","default":false}],"mmrad":[{"id":"ct_reports","label":"Informes TAC","default":true,"since":4}]},"mmrad":{"imageTypes":["radiographs","ultrasounds"],"defaultImageTypes":["radiographs"],"excludeEchocardiography":true}};
+globalThis.ClinicalCatalog={"version":1,"packetVersion":4,"identity":{"minDigits":7,"maxDigits":8,"maxPatients":200},"sources":{"syslab":"Syslab","exalab":"Exalab","eloisa":"Eloísa Ambulatorio","mmrad":"MMRAD","his":"HIS","rayen":"Eloísa Hospitalizados","email":"Correo"},"periods":[{"value":"30d","label":"Últimos 30 días","short":"30 días","stop":"30 d","days":30},{"value":"3m","label":"Últimos 3 meses","short":"3 meses","stop":"3 m","months":3},{"value":"6m","label":"Últimos 6 meses","short":"6 meses","stop":"6 m","months":6},{"value":"1y","label":"Último año","short":"1 año","stop":"1 a","months":12},{"value":"2y","label":"Últimos 2 años","short":"2 años","stop":"2 a","months":24},{"value":"5y","label":"Últimos 5 años","short":"5 años","stop":"5 a","months":60},{"value":"10y","label":"Últimos 10 años","short":"10 años","stop":"10 a","months":120},{"value":"latest","label":"Último registro","short":"Último"}],"content":{"eloisa":[{"id":"medical","label":"Evoluciones médicas","default":true},{"id":"other","label":"Otros profesionales","default":false},{"id":"prescriptions","label":"Recetas","default":true},{"id":"referrals","label":"Interconsultas","default":true},{"id":"attachments","label":"Documentos adjuntos","default":true,"since":4}],"rayen":[{"id":"epicrisis","label":"Epicrisis médica","default":true},{"id":"record","label":"Ficha clínica completa","default":false}],"mmrad":[{"id":"ct_reports","label":"Informes TAC","default":true,"since":4}]},"mmrad":{"imageTypes":["radiographs","ultrasounds"],"defaultImageTypes":["radiographs"],"excludeEchocardiography":true},"delivery":{"version":3,"baseline":{"id":"antecedentes","required":true,"skill":"resumen-antecedentes","mode":"codex","filename":"{date} Resumen antecedentes.txt","supportFilename":"{date} Sustento Resumen antecedentes.txt"},"models":[{"id":"documents","label":"Sin formato adicional","version":2,"template_status":"not_required"},{"id":"epicrisis","label":"Epicrisis","version":1,"template_status":"pending"},{"id":"telemedicina-reumatologia","label":"Telemedicina · Reumatología","version":1,"template_status":"available","skill":"telereumatologia"},{"id":"telemedicina-gastroenterologia","label":"Telemedicina · Gastroenterología","version":1,"template_status":"pending"},{"id":"evolucion-ambulatoria","label":"Evolución · Eloísa ambulatoria","version":1,"template_status":"pending"},{"id":"evolucion-hospitalizados","label":"Evolución · Hospitalizados","version":1,"template_status":"pending"},{"id":"custom","label":"Libre","version":1,"template_status":"not_required"}]}};
 
 const $ = id => document.getElementById(id);
 const form = $('request-form');
-const labels = {syslab:'Syslab',exalab:'Exalab',eloisa:'Eloísa Ambulatorio',mmrad:'MMRAD',his:'HIS',rayen:'Eloísa Hospitalizados',email:'Correo',mmrad_images:'Imágenes MMRAD'};
+const labels = {...ClinicalCatalog.sources,mmrad_images:'Imágenes MMRAD'};
 let submitting = false, bridgeVersion = 0;
 function selectedSources() { return Array.from(form.querySelectorAll('input[name="source"]:checked'),input => input.value); }
-const periods = [
-  {value:'30d',label:'Últimos 30 días',days:30}, {value:'3m',label:'Últimos 3 meses',months:3}, {value:'6m',label:'Últimos 6 meses',months:6},
-  {value:'1y',label:'Último año',months:12}, {value:'2y',label:'Últimos 2 años',months:24},
-  {value:'5y',label:'Últimos 5 años',months:60}, {value:'10y',label:'Últimos 10 años',months:120}
-];
+const periods = ClinicalCatalog.periods.filter(period => period.value !== 'latest');
 function patientSelection() {
   const all = [...new Set(form.elements.ruts.value.split(/[\s,;]+/).filter(Boolean).map(x => x.replace(/\./g,'').toUpperCase()))];
   const valid = all.filter(rut => {
-    if (!/^\d{1,8}-[0-9K]$/.test(rut)) return false;
+    const {minDigits,maxDigits} = ClinicalCatalog.identity;
+    if (!new RegExp(`^\\d{${minDigits},${maxDigits}}-[0-9K]$`).test(rut)) return false;
     const [body,digit] = rut.split('-');
     let sum = 0;
     [...body].reverse().forEach((n,i) => { sum += Number(n) * (2 + i % 6); });
@@ -127,8 +124,8 @@ function sourcePeriods() {
     .map(source => [source,customPeriods[source]]).filter(([,period]) => period !== currentPeriod().value));
 }
 function updateSourcePeriods(selected) {
-  const allPeriods = [...periods,{value:'latest',label:'Último registro'}];
-  const shortLabels = ['30 días','3 meses','6 meses','1 año','2 años','5 años','10 años','Último'];
+  const allPeriods = ClinicalCatalog.periods;
+  const shortLabels = allPeriods.map(period => period.short);
   for (const source of ['syslab','exalab','eloisa','his','rayen','mmrad','email']) {
     const custom = Object.hasOwn(customPeriods,source), enabled = selected.includes(source);
     const slider = form.querySelector(`[data-source-period="${source}"]`);
@@ -193,16 +190,16 @@ function updateFields() {
   updateSourcePeriods(selected);
   $('summary-delivery').textContent = form.elements.deliveryModel.selectedOptions[0].textContent;
   $('delivery-summary').textContent = form.elements.deliveryModel.value === 'documents' ? 'Opcional' : form.elements.deliveryModel.selectedOptions[0].textContent;
-  $('template-state').hidden = ['documents','custom'].includes(form.elements.deliveryModel.value);
+  $('template-state').hidden = ClinicalCatalog.delivery.models.find(model => model.id === form.elements.deliveryModel.value)?.template_status !== 'pending';
   $('summary-periods').textContent = Object.entries(sourcePeriods()).map(([source,period]) => labels[source]+': '+([...periods,{value:'latest',label:'Último registro'}].find(p => p.value === period).label)).join(' · ');
   $('mmrad-error').hidden = !mmrad || !imaging.empty;
   for (const box of form.querySelectorAll('[data-group]')) {
     const names = box.dataset.group.split(','), count = names.filter(x => selected.includes(x)).length;
     box.checked = count === names.length;box.indeterminate = count>0 && count<names.length;
   }
-  const invalid = patients.invalid || patients.all.length>200;
+  const invalid = patients.invalid || patients.all.length>ClinicalCatalog.identity.maxPatients;
   form.elements.ruts.setAttribute('aria-invalid',String(Boolean(invalid)));
-  $('rut-status').textContent = patients.all.length>200 ? 'Máximo 200 pacientes' : patients.invalid ? `${patients.invalid} RUT no válido(s)` : patients.valid.length ? `${patients.valid.length} paciente(s)` : 'Sin pacientes';
+  $('rut-status').textContent = patients.all.length>ClinicalCatalog.identity.maxPatients ? `Máximo ${ClinicalCatalog.identity.maxPatients} pacientes` : patients.invalid ? `${patients.invalid} RUT no válido(s)` : patients.valid.length ? `${patients.valid.length} paciente(s)` : 'Sin pacientes';
   $('rut-status').classList.toggle('field-error',Boolean(invalid));
   $('source-count').textContent = `${selected.length} de 7 fuentes seleccionadas`;
   $('summary-patients').textContent = patients.valid.length ? String(patients.valid.length) : '—';
@@ -236,7 +233,7 @@ form.addEventListener('change',updateFields);
 
 function requestSelection() {
   const selected = selectedSources(), patients = patientSelection(), imaging = mmradSelection();
-  if (!patients.valid.length || patients.invalid || patients.all.length > 200) throw new Error('Revisa los RUT de los pacientes.');
+  if (!patients.valid.length || patients.invalid || patients.all.length > ClinicalCatalog.identity.maxPatients) throw new Error('Revisa los RUT de los pacientes.');
   if (!selected.length) throw new Error('Selecciona al menos una fuente.');
   if (selected.includes('mmrad') && imaging.empty) throw new Error('Selecciona qué descargar de MMRAD.');
   const contents = sourceContent();
@@ -266,11 +263,10 @@ function requestSelection() {
         merge:selection.merge,patientMerge:selection.patientMerge}};
   }
   function prompt(packet) {
-    return `$flujo-clinico\n\nEjecuta esta solicitud en el Mac mini usando las skills clínicas instaladas. Fecha de referencia: ${displayDate(packet.asOf)} (Pacific/Easter).\n`+
-      'Lee laboratorios-descargas/references/solicitud-portatil.md, valida el bloque JSON e impórtalo con submit_request.py en la cola local conservando id y asOf; un reenvío debe recuperar el mismo trabajo. Si esta tarea corre en otro equipo, indícalo y conserva la solicitud para el Mac mini. No des por enviado ni ejecutado el trabajo por haber copiado este texto.\n'+
-      'Respeta solo los pacientes, fuentes, períodos propios, contenidos por fuente, productos MMRAD y formato elegidos. Fija --as-of con asOf; no recalcules la fecha al pegar. Conserva y archiva los documentos verificados por nombre de paciente aunque fallen otras fuentes. Excluye imágenes de ecocardiografías.\n'+
-      'Si se seleccionó email, usa $correo-clinico con emailAccount y su período; comprueba la cuenta conectada antes de consultar. Guarda sólo evidencia vinculada al paciente. Al cerrar toda orden, incluye el resumen numerado [X]/[~]/[ ] de fuentes en la respuesta y guarda el mismo texto en TXT, aunque no se pida documento de entrega. Consulta references/cierre-fuentes.md de laboratorios-descargas.\n'+
-      'deliveryModel=documents significa solo archivos, sin redactar un documento adicional. deliveryModel=custom usa deliveryInstructions como encargo de redacción libre, sin exigir plantilla institucional. Si sourceContent.rayen incluye record, completa el flujo del visor descrito en rayen-epicrisis/references/ficha-completa.md y verifica el PDF; abrirlo no equivale a descargarlo. Para los modelos institucionales, usa la plantilla del usuario si está disponible; si falta, deja esa redacción pendiente y entrega las fuentes. No firmes ni publiques en la ficha.\n\n'+
+    return `$flujo-clinico\n\nSolicitud para importar en el Mac mini. Fecha fija: ${displayDate(packet.asOf)} (Pacific/Easter).\n`+
+      'Valida el JSON e impórtalo una sola vez con laboratorios-descargas/scripts/submit_request.py. Conserva id y asOf; un reenvío recupera el mismo trabajo. Si estás en otro equipo, conserva el JSON para el Mini y no afirmes que se ejecutó. La cola descarga y archiva las fuentes seleccionadas; no repitas manualmente las consultas ni amplíes pacientes, períodos o contenidos.\n'+
+      'Intervén solo para sesiones/credenciales pendientes, errores de verificación y tareas que el motor aún no ejecuta: correo con $correo-clinico si fue seleccionado y ficha hospitalaria completa si se pidió record. Respeta el período propio de cada una. Nunca tomes abrir el visor como descarga verificada. Conserva archivos parciales; excluye imágenes de ecocardiogramas.\n'+
+      'Toda corrida añade por paciente el TXT clínico basal con $resumen-antecedentes: DD-MM-AAAA Resumen antecedentes.txt, en Lectura y entregas, aunque deliveryModel=documents o se solicite otro modelo. Obtén el encargo de /api/delivery, redacta desde evidencia verificada y registra con register_delivery.py según references/entregas-verificadas.md; exige estado archived e informa sincronización aparte. No lo des por generado al terminar la descarga. custom añade deliveryInstructions; los modelos institucionales usan la plantilla disponible o quedan pendientes sin bloquear el TXT basal. Cierre numerado [X]/[~]/[ ] en respuesta y TXT de Control y trazabilidad, según references/cierre-fuentes.md. No firmes ni publiques en la ficha.\n\n'+
       '```json\n'+JSON.stringify(packet,null,2)+'\n```';
   }
   function tracker() {
@@ -302,6 +298,7 @@ function clearPreparedView() {
   $('request-text').value = '';
   $('request-preview').open = false;
   $('save-request').disabled = $('run').disabled;
+  $('send-drive').disabled = $('run').disabled || !globalThis.showDirectoryPicker || !crypto.subtle;
 }
 form.addEventListener('input',clearPreparedView);
 form.addEventListener('change',clearPreparedView);
@@ -335,6 +332,53 @@ $('save-request').addEventListener('click',() => {
     setTimeout(() => URL.revokeObjectURL(url),30000);
     $('copy-status').textContent = 'Archivo preparado. Guárdalo en Drive y ábrelo con Codex del Mac mini.';
   } catch (cause) { displayRequestError(cause); }
+});
+async function writeDriveRequest(directory, packet) {
+  if (directory.name !== '_Solicitudes Nexo') throw new Error('Selecciona la carpeta «_Solicitudes Nexo» de Google Drive.');
+  const raw = JSON.stringify(packet,null,2)+'\n';
+  const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw))),
+    byte => byte.toString(16).padStart(2,'0')).join('');
+  const stem = `solicitud-${packet.id}`;
+  try {
+    const existing = await directory.getFileHandle(stem+'.ready');
+    const prior = (await (await existing.getFile()).text()).trim();
+    if (prior !== digest) throw new Error('Ese ID ya existe con otro contenido. Pulsa «Nuevo pedido».');
+  } catch (error) { if (error.name !== 'NotFoundError') throw error; }
+  const data = await directory.getFileHandle(stem+'.json',{create:true});
+  const stream = await data.createWritable();
+  await stream.write(raw);await stream.close();
+  const ready = await directory.getFileHandle(stem+'.ready',{create:true});
+  const marker = await ready.createWritable();
+  await marker.write(digest+'\n');await marker.close();
+  return digest;
+}
+async function awaitDriveReceipt(directory, packet, digest) {
+  for (let attempt=0;attempt<40;attempt++) {
+    await new Promise(resolve=>setTimeout(resolve,3000));
+    try {
+      const acuses = await directory.getDirectoryHandle('acuses');
+      const file = await acuses.getFileHandle(`acuse-${packet.id}.json`);
+      const receipt = JSON.parse(await (await file.getFile()).text());
+      if (receipt.sha256 !== digest) continue;
+      if (prepared?.id !== packet.id) return;
+      $('copy-status').textContent = receipt.status === 'imported'
+        ? 'Recibida por el Mac mini e importada en la cola.'
+        : 'El Mac mini rechazó la solicitud: '+(receipt.error || 'revisa el archivo.');
+      return;
+    } catch (error) { if (error.name !== 'NotFoundError' && !(error instanceof SyntaxError)) break; }
+  }
+  if (prepared?.id === packet.id) $('copy-status').textContent = 'Solicitud guardada en Drive; acuse del Mac mini aún pendiente.';
+}
+$('send-drive').addEventListener('click',async () => {
+  try {
+    const packet = requestTracker.prepare(requestSelection());prepared = packet;
+    const directory = await globalThis.showDirectoryPicker({id:'nexo-drive-inbox',mode:'readwrite'});
+    const digest = await writeDriveRequest(directory,packet);
+    $('copy-status').textContent = 'Solicitud guardada en Drive; esperando acuse del Mac mini.';
+    void awaitDriveReceipt(directory,packet,digest);
+  } catch (error) {
+    if (error.name !== 'AbortError') displayRequestError(error);
+  }
 });
 $('request-preview').addEventListener('toggle',() => {
   if (!$('request-preview').open) return;

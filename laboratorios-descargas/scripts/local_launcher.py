@@ -204,12 +204,17 @@ class Handler(BaseHTTPRequestHandler):
             try:self.send_json(200,self.launcher.mail_request(query.get('id',[''])[0]))
             except ValueError as error:self.send_json(404,{'error':str(error)})
             return
-        if path.path in ('/api/file','/api/receipt'):
+        if path.path in ('/api/file','/api/receipt','/api/artifact'):
             try:
                 ident, index = query.get('id',[''])[0], int(query.get('index',[''])[0])
                 with self.launcher.lock:
                     if index < 0:raise ValueError()
-                    item = self.launcher.jobs[ident]['receipts' if path.path=='/api/receipt' else 'files'][index]
+                    if path.path=='/api/artifact':
+                        from clinical_artifacts import states
+                        row=states(self.launcher.jobs[ident])[index]
+                        if row['status'] not in ('verified','archived'):raise ValueError()
+                        artifact=row['artifact'];item={'path':artifact['path'],'sha256':artifact['path_sha256']}
+                    else:item = self.launcher.jobs[ident]['receipts' if path.path=='/api/receipt' else 'files'][index]
                 if query.get('sha256', [''])[0] != item.get('sha256'):raise ValueError()
                 file = Path(item['path']).resolve()
                 from clinical_email import ALLOWED_EXTENSIONS
@@ -242,12 +247,13 @@ class Handler(BaseHTTPRequestHandler):
                 'http://localhost:{}'.format(self.server.server_port)):
             self.send_json(403, {'error':'Origen no permitido.'})
             return
-        if path not in ('/api/jobs','/api/import','/api/sessions','/api/cancel','/api/credentials','/api/retry','/api/archive'):
+        if path not in ('/api/jobs','/api/import','/api/sessions','/api/cancel','/api/credentials','/api/retry','/api/archive','/api/delivery/register'):
             self.send_json(404, {'error':'Ruta no disponible.'})
             return
         try:
             size = int(self.headers.get('Content-Length','0'))
-            if not 0 < size <= 65536:
+            limit=2*1024*1024 if path=='/api/delivery/register' else 65536
+            if not 0 < size <= limit:
                 raise ValueError('Solicitud demasiado grande.')
             from clinical_request import decode_json
             body = decode_json(self.rfile.read(size))
@@ -266,6 +272,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = self.launcher.retry(body.get('id'))
             elif path == '/api/archive':
                 result = self.launcher.verify_archive(body.get('id'))
+            elif path == '/api/delivery/register':
+                result = self.launcher.register_delivery(body)
             else:
                 self.launcher.cancel_waiting(body.get('id'))
                 result = {'ok':True}
@@ -293,13 +301,22 @@ def serve(output=DEFAULT_OUTPUT, python=None, open_browser=True):
         return
     server.launcher = Launcher(output, python)
     server.daemon_threads = True
+    from drive_inbox import DriveInbox
+    inbox = DriveInbox(server.launcher)
+    try:
+        inbox_active = inbox.start()
+    except OSError:
+        inbox_active = False
     if open_browser:
         open_local_page()
     print('Descargas clínicas: http://127.0.0.1:{}/'.format(PORT), flush=True)
     print('Los PDF se guardan en: {}'.format(server.launcher.output), flush=True)
+    if inbox_active:
+        print('Bandeja Drive activa: {}'.format(inbox.root), flush=True)
     try:
         server.serve_forever()
     finally:
+        inbox.close()
         server.launcher.close()
         server.server_close()
 

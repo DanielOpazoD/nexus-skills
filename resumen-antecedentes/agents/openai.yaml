@@ -1,0 +1,4 @@
+interface:
+  display_name: "Resumen de antecedentes"
+  short_description: "Síntesis clínica breve por paciente en cada corrida"
+  default_prompt: "Usa $resumen-antecedentes para generar el TXT basal de cada paciente con la evidencia verificada de esta corrida."

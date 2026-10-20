@@ -4,7 +4,7 @@ Referencia de alcance, no comprobación de disponibilidad actual de los portales
 
 | Función | Alcance implementado | Lo que aún falta |
 |---|---|---|
-| Solicitud Air → Mini | HTML portátil con pacientes, fechas, fuentes, contenidos y entrega; texto/archivo para Codex del Mini | Recepción y ejecución automática por Drive. Copiar/guardar no equivale a enviar ni ejecutar. |
+| Solicitud Air → Mini | HTML/extensión con «Enviar a Drive», JSON+marcador y receptor en el lanzador del Mini con acuse e ID estable; copiar/guardar como respaldo | Verificar distribución en el Air y traslado real entre equipos. El lanzador debe quedar abierto; el acuse solo confirma importación. |
 | Seis portales | Clientes existentes, sesiones independientes, períodos y descargas; cola local persistente | Disponibilidad y sesión vigentes en cada ejecución. El Mini concentra el trabajo; Syslab/Exalab requieren su red. |
 | Adjuntos Eloísa | Enumeración por atención, descarga de PDF original, identidad del encabezado, caché, parciales y archivo; ecocardiograma real comprobado | Formatos no PDF, escaneados o encabezados no reconocidos: revisión manual pendiente. |
 | MMRAD actual | Informes TAC y radiografías por selección; ecocardiografías excluidas | Informes ausentes de TAC quedan pendientes. Informe de ecocardiograma: adjunto Eloísa. |
@@ -14,6 +14,7 @@ Referencia de alcance, no comprobación de disponibilidad actual de los portales
 | Cierre y continuidad | TXT obligatorio, bytes comprobados, recuperación de originales, reanudación selectiva y conservación de parciales | El estado describe la solicitud y los bytes verificados, no garantiza que el portal carezca de información nueva posterior. |
 | Expediente en Drive | Carpeta por nombre con identidad por RUT, copia verificada y versiones | La confirmación remota requiere conexión OAuth del lanzador. Una copia local no prueba subida. |
 | Formato de entrega | Opcional; selección de modelo o encargo libre para Codex | Plantillas institucionales del usuario y generación integrada. No firma ni envío a la ficha. |
+| Resumen basal de antecedentes | Skill predeterminada, registro por paciente ligado a evidencia y fechas, validación, sustento TXT y copia comprobada; vigencia y recuperación tras reinicio | Redacción y cotejo clínico en Codex. El descargador independiente no redacta síntesis; fuentes completas no acreditan entrega. |
 | Biopsias | Pendiente; señal visual sin selección ni consulta | Identificar fuente y acceso autorizado; implementar antes de habilitar. |
 
 ## Próximo módulo: Biopsias

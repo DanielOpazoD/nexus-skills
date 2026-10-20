@@ -1,0 +1,4 @@
+interface:
+  display_name: "Resumen de telereumatología"
+  short_description: "Resumen compacto con anexo de revisión"
+  default_prompt: "Usa $telereumatologia para resumir los documentos aportados en formato compacto y notificativo; deja observaciones y fuentes en anexo separado, sin citas por frase."

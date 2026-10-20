@@ -53,7 +53,8 @@ class IntegrityClosureTests(unittest.TestCase):
         row=first['results'][0];path=Path(row['files'][0]);path.write_bytes(path.read_bytes()+b'changed')
         data=labs.read_progress(first['checkpoint']);progress=labs.Progress(self.output,data['request'],resume=first['checkpoint']);progress.state=data
         changed=progress.update(row)
-        self.assertEqual(changed['status'],'partial');self.assertEqual(changed['files'],[])
+        self.assertEqual(changed['status'],'partial');self.assertNotIn(str(path),changed['files'])
+        self.assertEqual(len(changed['files']),len(row['files'])-1)
     def test_integrity_cache_detects_same_size_change_with_restored_mtime(self):
         import os
         q,job,summary=self.complete_job();q.status(job['id'])
@@ -68,6 +69,6 @@ class IntegrityClosureTests(unittest.TestCase):
         self.assertIn('[~] 3.',state['receipts'][0]['text'])
     def test_unchanged_completed_job_remains_complete(self):
         q,job,summary=self.complete_job();before=q.status(job['id']);after=q.status(job['id'])
-        self.assertEqual(after['status'],'complete');self.assertEqual(before['receipts'],after['receipts']);self.assertEqual(len(after['files']),2)
+        self.assertEqual(after['status'],'complete');self.assertEqual(before['receipts'],after['receipts']);self.assertEqual(len(after['files']),4)
 
 del WorkflowTests

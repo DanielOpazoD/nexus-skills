@@ -1,6 +1,6 @@
 # Plantillas de entrega
 
-Espacio reservado para los formatos que entregará el usuario. No hay plantillas institucionales recibidas todavía.
+Espacio para los formatos del usuario. El 19-10-2026 se recibió el ejemplo de telereumatología: sus secciones y estilo están disponibles en [telereumatologia](../telereumatologia/SKILL.md), sin datos del paciente. La generación automática mediante plantillas institucionales sigue pendiente; el resto de los formatos espera recepción.
 
 - [Epicrisis](epicrisis/)
 - [Telemedicina · Reumatología](telemedicina-reumatologia/)
@@ -12,4 +12,4 @@ Espacio reservado para los formatos que entregará el usuario. No hay plantillas
 
 Subir únicamente formatos vacíos autorizados. Las copias completadas se guardan en el expediente privado del paciente, fuera de Git. Fechas visibles y nombres de versiones: DD-MM-AAAA. El archivo original recibido debe conservarse. Revisar cada incorporación y añadir su ruta explícita a `.gitignore`; no eludir la lista permitida con `git add -f`.
 
-La entrega libre y la opción «Solo descargar archivos» no requieren plantilla institucional.
+La entrega libre, el TXT basal de antecedentes y la opción «Sin formato adicional» no requieren plantilla institucional. El TXT basal acompaña cada corrida, según [su skill](../resumen-antecedentes/SKILL.md).

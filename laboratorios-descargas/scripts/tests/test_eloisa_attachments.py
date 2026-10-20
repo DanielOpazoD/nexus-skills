@@ -82,7 +82,10 @@ class AttachmentTests(unittest.TestCase):
             c=client();bytes_=original();old=c.download;c.download=lambda e:bytes_ if e.get('validation') else old(e)
             kwargs=dict(source_content={'eloisa':['medical','attachments']},merge=True)
             first=labs.run_batch([RUT],'eloisa','6m',DAY,output,{'eloisa':labs.Adapter('eloisa',c)},**kwargs)
-            row=first['results'][0];self.assertEqual(row['status'],'complete',row);self.assertEqual(len(row['files']),2);self.assertEqual(row['attachment_count'],1)
+            row=first['results'][0];self.assertEqual(row['status'],'complete',row);self.assertEqual(len(row['files']),3);self.assertEqual(row['attachment_count'],1)
+            self.assertIn(row['reading_pdf'],row['files'])
+            reading=labs.pdf_library()[0](Path(row['reading_pdf']))
+            self.assertEqual(len(reading.pages),1,'El adjunto no debe entrar en el PDF de atenciones.')
             original_file=next(Path(f) for f in row['files'] if 'Documentos adjuntos' in f);self.assertEqual(original_file.read_bytes(),bytes_)
             archived=PatientArchive(output,drive,Cloud()).archive(first);self.assertEqual(archived['status'],'complete',archived)
             self.assertTrue(any(Path(f['path']).read_bytes()==bytes_ for f in archived['files'] if f['path'].endswith('.pdf')))
@@ -98,7 +101,8 @@ class AttachmentTests(unittest.TestCase):
     def test_attachment_failure_preserves_visits_and_other_source(self):
         with tempfile.TemporaryDirectory() as out:
             result=labs.run_batch([RUT],'eloisa,his','6m',DAY,out,{'eloisa':labs.Adapter('eloisa',client(bad=True)),'his':Fake(source='his')},source_content={'eloisa':['medical','attachments']})
-            self.assertEqual([r['status'] for r in result['results']],['partial','complete']);self.assertEqual(len(result['results'][0]['files']),1)
+            self.assertEqual([r['status'] for r in result['results']],['partial','complete']);self.assertEqual(len(result['results'][0]['files']),2)
+            self.assertIn('PARCIAL',Path(result['results'][0]['reading_pdf']).name)
     def test_mmrad_ct_only_does_not_request_radiograph_or_echo_reports(self):
         class Images(Fake):
             def search(self,rut):return [dict(exam(str(n)),modality=m,pdf_url='https://example.test/pdf') for n,m in enumerate(['CR','US','CT'],1)]

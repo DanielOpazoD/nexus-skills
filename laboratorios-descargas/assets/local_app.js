@@ -29,7 +29,7 @@ async function refreshHistory() {
     for (const job of jobs) {
       const li = document.createElement('li'), button = document.createElement('button');
       button.type = 'button';
-      button.textContent = `${displayDate(job.started_at)} · ${job.patients} paciente(s) · ${job.sources.map(s => labels[s]).join(', ')} · ${job.delivery?.label || 'Sólo documentos originales'} · ${states[job.status] || job.status}`;
+      button.textContent = `${displayDate(job.started_at)} · ${job.patients} paciente(s) · ${job.sources.map(s => labels[s]).join(', ')} · ${job.delivery?.label || 'Sin formato adicional'} · ${states[job.status] || job.status}`;
       button.addEventListener('click',() => selectJob(job.id));
       li.append(button);$('history').append(li);
     }
@@ -55,6 +55,14 @@ function requestBridge(force = false) {
   attemptedBridge.add(key);
   window.postMessage({type:'labs.bridge-request',...pendingBridge},location.origin);
 }
+let lastReturnRetry = 0;
+function retrySessionsAfterLogin() {
+  if (!pendingBridge || document.hidden || Date.now() - lastReturnRetry < 15000) return;
+  lastReturnRetry = Date.now();
+  requestBridge(true);
+}
+window.addEventListener('focus',retrySessionsAfterLogin);
+document.addEventListener('visibilitychange',retrySessionsAfterLogin);
 window.addEventListener('message',event => {
   if (event.source !== window || event.origin !== location.origin) return;
   if (event.data?.type === 'labs.bridge-ready') {
@@ -87,9 +95,29 @@ function render(body) {
   if ($('result-count').textContent !== overview) $('result-count').textContent=overview;
   $('receipt-panel').hidden=!(body.receipts || []).length;
   const delivery = body.delivery;
-  $('delivery-result').hidden = !delivery || delivery.id === 'documents';
-  $('delivery-state').textContent = delivery && delivery.id !== 'documents' ? delivery.label+(delivery.id === 'custom' ? ' · Redacción pendiente en Codex' : ' · Plantilla pendiente') : '';
-  const stateLabel=states[body.status] || body.status;
+  $('delivery-result').hidden = !delivery;
+  const artifacts = body.artifacts || [];
+  const ready = artifacts.filter(item => item.status === 'archived').length;
+  const review = artifacts.filter(item => ['stale','modified'].includes(item.status)).length;
+  const deliveryText = `${ready}/${artifacts.length} entregas archivadas${review ? ' · '+review+' por revisar' : ''}`;
+  if ($('delivery-state').textContent !== deliveryText) $('delivery-state').textContent = deliveryText;
+  $('copy-delivery').hidden = artifacts.length > 0 && ready === artifacts.length;
+  const artifactKey = JSON.stringify(artifacts);
+  if ($('delivery-files').dataset.signature !== artifactKey) {
+    $('delivery-files').dataset.signature = artifactKey;$('delivery-files').replaceChildren();
+    const productStates = {pending:'Por redactar',verified:'Copia pendiente',archived:'Archivado',stale:'Actualizar con las nuevas fuentes',modified:'Revisar archivo modificado'};
+    artifacts.forEach((item,index) => {
+      const li=document.createElement('li');
+      const label=`${item.name || item.artifact?.name || item.rut} · ${item.kind === ClinicalCatalog.delivery.baseline.id ? 'Antecedentes' : delivery.label}`;
+      if (['verified','archived'].includes(item.status)) {
+        const link=document.createElement('a');
+        link.href='/api/artifact?id='+encodeURIComponent(body.id)+'&index='+index+'&sha256='+encodeURIComponent(item.artifact.path_sha256);
+        link.textContent=label;li.append(link,document.createTextNode(' · '+productStates[item.status]));
+      } else li.textContent=label+' · '+(item.kind !== ClinicalCatalog.delivery.baseline.id && delivery.template_status === 'pending' && item.status === 'pending' ? 'Plantilla pendiente' : productStates[item.status]);
+      $('delivery-files').append(li);
+    });
+  }
+  const stateLabel=body.fulfillment === 'complete' ? 'Solicitud completada' : body.status === 'complete' ? 'Fuentes completas · Entrega pendiente' : states[body.status] || body.status;
   if ($('state').textContent !== stateLabel) $('state').textContent=stateLabel;
   $('progress').textContent = body.lines.join('\n');
   const stopped = ['cancelled','cancelling','complete'].includes(body.status);
@@ -107,7 +135,8 @@ function render(body) {
     const exclusions = rows.flatMap(row => row.excluded_images || []);
     if (exclusions.length) notices.push(`${exclusions.length} estudio(s) con imágenes excluidas por la selección o por ser ecocardiografías`);
     const sourcePeriod = [...periods,{value:'latest',label:'Último registro'}].find(p => p.value === (body.source_periods?.[source] || body.period));
-    item.textContent = `${labels[source]}${sourcePeriod ? ' · '+sourcePeriod.label : ''}: ${states[status] || status}${notices.length ? '. '+notices.join(' ') : ''}`;
+    const action = status === 'needs_session' ? ' · Inicia sesión en el portal y vuelve aquí.' : status === 'needs_credentials' ? ' · Completa sus credenciales.' : status === 'needs_codex' ? ' · Usa Consultar correo en Codex.' : '';
+    item.textContent = `${labels[source]}${sourcePeriod ? ' · '+sourcePeriod.label : ''}: ${states[status] || status}${action}${notices.length ? '. '+notices.join(' ') : ''}`;
     $('source-states').append(item);
   }
   $('pending-reports').replaceChildren();

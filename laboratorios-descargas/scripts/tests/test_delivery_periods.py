@@ -38,8 +38,19 @@ class DeliveryPeriodTests(unittest.TestCase):
         for row in restored.history():
             status=restored.status(row['id'])
             if row['id']==default['id']:continue
-            self.assertEqual(status['delivery']['status'],'template_pending')
+            self.assertEqual(status['delivery']['status'],'codex_pending' if status['delivery'].get('template_status')=='available' else 'template_pending')
             self.assertEqual(status['source_periods'],{'eloisa':'2y'})
+    def test_baseline_summary_is_required_with_documents_and_an_additional_model(self):
+        q=self.queue()
+        for model in ('documents','telemedicina-reumatologia'):
+            request=q.new_job(self.request(deliveryModel=model))
+            delivery=q.delivery_request(request['id'])
+            self.assertEqual(delivery['delivery']['id'],model)
+            self.assertEqual(delivery['baseline_summary']['skill'],'resumen-antecedentes')
+            self.assertTrue(delivery['baseline_summary']['required'])
+            self.assertEqual(delivery['baseline_summary']['mode'],'codex')
+            self.assertRegex(delivery['baseline_summary']['filename'],r'^\d{2}-\d{2}-\d{4} Resumen antecedentes\.txt$')
+            self.assertEqual(delivery['files'],0,'Copiar un encargo no acredita redacción ni descarga.')
     def test_invalid_periods_and_unselected_source(self):
         q=self.queue()
         for invalid in ([], 'all',{'syslab':'1y'},{'eloisa':'20y'},{'eloisa':None}):
@@ -61,7 +72,7 @@ class DeliveryPeriodTests(unittest.TestCase):
             labs.run_batch([RUT],'mmrad','30d',DAY,self.root/'images',{'mmrad':Fake()},mmrad_mode='both',source_periods={'mmrad':'5y'})
         self.assertEqual(reports.call_args.args[3],'5y');self.assertEqual(images.call_args.args[2],'5y')
     def test_partial_download_handoff_resume_and_restart(self):
-        q=self.queue(True);req=q.new_job(self.request(deliveryModel='telemedicina-gastroenterologia',sourcePeriods={'eloisa':'30d','rayen':'5y'}))
+        q=self.queue(True);req=q.new_job(self.request(deliveryModel='telemedicina-gastroenterologia',sourcePeriods={'eloisa':'30d','rayen':'5y'},requestId='a'*32,asOf=DAY.isoformat()))
         q.provide_sessions({**req,'eloisa':{'access_token':'fixture-secret'}})
         status=wait_for(lambda:(v if (v:=q.status(req['id']))['status']=='attention' and v['files'] else None))
         before={f['sha256'] for f in status['files']}
@@ -69,7 +80,7 @@ class DeliveryPeriodTests(unittest.TestCase):
         cp=json.loads(Path(q.jobs[req['id']]['checkpoint']).read_text())
         self.assertEqual(cp['request']['source_periods'],{'eloisa':'30d','rayen':'5y'})
         draft=q.delivery_request(req['id']);self.assertGreater(draft['files'],0)
-        self.assertIn('Gastroenterología',draft['prompt']);self.assertIn('plantilla del usuario está pendiente',draft['prompt'])
+        self.assertIn('Gastroenterología',draft['prompt']);self.assertIn('El TXT basal no espera esa plantilla',draft['prompt'])
         self.assertIn(DAY.strftime('%d-%m-%Y'),draft['prompt']);self.assertNotIn('fixture-secret',draft['prompt'])
         q.provide_sessions({**req,'rayen':{'token':'fixture','facilityId':77}})
         complete=wait_for(lambda:(v if (v:=q.status(req['id']))['status']=='complete' else None))
@@ -78,13 +89,13 @@ class DeliveryPeriodTests(unittest.TestCase):
         q.close();self.queues.remove(q);restored=self.queue()
         self.assertEqual(restored.status(req['id'])['delivery']['id'],'telemedicina-gastroenterologia')
     def test_handoff_rechecks_hash_patient_and_boundary(self):
-        q=self.queue();req=q.new_job(self.request(deliveryModel='epicrisis'))
+        q=self.queue();req=q.new_job(self.request(deliveryModel='epicrisis',requestId='a'*32,asOf=DAY.isoformat()))
         job=q.jobs[req['id']];summary=labs.run_batch([RUT],'eloisa,rayen','6m',DAY,job['work_output'],{'eloisa':Fake()})
         job['checkpoint']=summary['checkpoint'];q._refresh(job)
         original=Path(job['files'][0]['path']);original.write_bytes(original.read_bytes()+b'changed')
-        first=handoff(job,q.output);self.assertEqual(first['files'],0);self.assertGreater(first['excluded'],0)
-        job['files'][0]['rut']='22222222-2';second=handoff(job,q.output);self.assertEqual(second['files'],0)
-        job['files'][0]['path']=str(self.root/'outside.pdf');third=handoff(job,q.output);self.assertEqual(third['files'],0)
+        first=handoff(job,q.output);self.assertEqual(first['files'],len(job['files'])-1);self.assertGreater(first['excluded'],0)
+        job['files'][0]['rut']='22222222-2';second=handoff(job,q.output);self.assertEqual(second['files'],len(job['files'])-1)
+        job['files'][0]['path']=str(self.root/'outside.pdf');third=handoff(job,q.output);self.assertEqual(third['files'],len(job['files'])-1)
     def test_real_cli_passes_override_and_resumes_same_request(self):
         module=labs.load_backend('eloisa');original_loader=labs.load_backend
         class EmptyEloisa:

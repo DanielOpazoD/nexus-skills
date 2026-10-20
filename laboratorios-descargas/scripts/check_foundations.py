@@ -19,7 +19,8 @@ SKILL = SCRIPTS.parent
 ROOT = SKILL.parent
 SKILLS = ('flujo-clinico', 'laboratorios-descargas', 'syslab-resultados', 'exalab-resultados',
           'eloisa-resultados', 'mmrad-resultados', 'his-resultados', 'rayen-epicrisis',
-          'correo-clinico', 'eloisa-archivo-drive', 'reporte-clinico', 'formularios-clinicos')
+          'correo-clinico', 'eloisa-archivo-drive', 'reporte-clinico', 'formularios-clinicos',
+          'telereumatologia', 'resumen-antecedentes')
 
 
 def locked_versions(path=SKILL / 'requirements.lock'):
