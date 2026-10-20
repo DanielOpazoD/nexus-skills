@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id),C=NexoLibraryCore,D=NexoDriveLibrary;
 const T=globalThis.NexoTransport;
 let activeView='request',provider=null,patients=[],selected=null,selectedDocument=null,sequence=0,loading=false;
-let contextSelection=false,reconnectHandle=null;
+let contextSelection=false,reconnectHandle=null,followContext=true,lastContext,contextBusy=false;
 const readContext=()=>T?T.bounded(bridge({type:'nexo.patient.context'})):bridge({type:'nexo.patient.context'});
 async function bridge(message){
   const response=await chrome.runtime.sendMessage(message);
@@ -18,7 +18,7 @@ function switchView(view,focus=false){
     $('tab-'+id).setAttribute('aria-selected',String(id===view));$('tab-'+id).tabIndex=id===view?0:-1;$('view-'+id).hidden=id!==view;
   }
   if(focus)$('tab-'+view).focus();
-  if(view==='library')void refresh();
+  if(view==='library'){followContext=true;lastContext=undefined;void refresh();}
 }
 for(const id of ['request','library']){
   $('tab-'+id).addEventListener('click',()=>switchView(id));
@@ -57,7 +57,7 @@ async function refresh(){
     for(const patient of catalog.patients){C.rut(patient.rut);if(typeof patient.name!=='string'||!Array.isArray(patient.documents))throw Error('Biblioteca pendiente de revisión.');}
     provider=next;$('library-origin').textContent=next.kind==='drive'?'Drive · carpeta sincronizada':'Mini · archivo local';$('connect-drive').textContent=next.kind==='drive'?'Cambiar conexión de Drive':'Conectar carpeta de Drive';patients=catalog.patients.sort((a,b)=>a.name.localeCompare(b.name,'es',{sensitivity:'base'}));loading=false;renderPatients();
     if(catalog.issues)$('library-status').textContent+=' · '+catalog.issues+' archivo(s) requieren revisión';
-    void suggestCurrentPatient(request);
+    void followCurrentPatient();
   }catch(error){if(request===sequence){patients=[];provider=null;$('library-origin').textContent='';loading=false;renderPatients();$('library-status').textContent=error.message||'No se pudo cargar la biblioteca.';}}
   finally{if(request===sequence){loading=false;$('refresh-library').disabled=false;}}
 }
@@ -76,6 +76,8 @@ async function readSummary(document){
   try{
     const result=await (T?T.bounded(provider.read(document.id,document.sha256)):provider.read(document.id,document.sha256));
     if(turn!==sequence || selected!==patient || activeView!=='library')return;
+    if(contextSelection)await ensureContext(patient);
+    if(turn!==sequence||selected!==patient)return;
     const identity=C.documentIdentity(result.text,patient.name);
     if(result.id!==document.id || result.sha256!==document.sha256 || identity.rut!==patient.rut || !C.sameName(identity.name,patient.name))throw Error('La identidad del resumen no coincide.');
     selectedDocument={...document,status:result.status};$('summary-text').value=result.text;
@@ -85,16 +87,18 @@ async function readSummary(document){
   }catch(error){if(turn===sequence){$('summary-text').value='';$('summary-status').textContent=error.message||'No se pudo leer el resumen.';$('copy-summary').disabled=true;}}
 }
 $('summary-version').addEventListener('change',()=>{const document=selected?.documents.find(d=>d.id===$('summary-version').value);if(document)void readSummary(document);else clearSummary();});
-$('patient-search').addEventListener('input',renderPatients);$('change-patient').addEventListener('click',listView);$('refresh-library').addEventListener('click',()=>{listView();void refresh();});
+$('patient-search').addEventListener('input',renderPatients);$('change-patient').addEventListener('click',()=>{followContext=false;listView();});$('refresh-library').addEventListener('click',()=>{listView();void refresh();});
 $('copy-summary').addEventListener('click',async()=>{
   const document=selectedDocument,patient=selected,turn=sequence;
   if(!C.canCopy(document)||!patient)return;$('copy-summary').disabled=true;$('copy-status').textContent='Comprobando…';
   try{
-    if(contextSelection){const current=await readContext();if(turn!==sequence)return;if(!current.patient||C.rut(current.patient.rut)!==patient.rut||!C.sameName(current.patient.name,patient.name))throw Error('La ficha cambió. Vuelve a elegir al paciente.');}
+    if(contextSelection)await ensureContext(patient);if(turn!==sequence)return;
     const result=await (T?T.bounded(provider.read(document.id,document.sha256)):provider.read(document.id,document.sha256));
     if(turn!==sequence || selected!==patient)return;
     const identity=C.documentIdentity(result.text,patient.name);
     if(result.id!==document.id || result.sha256!==document.sha256 || identity.rut!==patient.rut || !C.sameName(identity.name,patient.name) || !C.canCopy(result))throw Error('El resumen cambió. Actualiza la lista.');
+    if(contextSelection)await ensureContext(patient);
+    if(turn!==sequence||selected!==patient)return;
     $('summary-text').value=result.text;
     try{await navigator.clipboard.writeText(result.text);if(turn===sequence)$('copy-status').textContent='Copiado';}
     catch(_){if(turn===sequence){$('summary-text').focus();$('summary-text').select();$('copy-status').textContent='Texto seleccionado · pulsa ⌘C';}}
@@ -129,16 +133,44 @@ $('choose-drive').addEventListener('click',async()=>{
 });
 $('forget-drive').addEventListener('click',async()=>{try{await D.savedHandle(null);listView();void refresh();}catch(_){$('setup-status').textContent='No se pudo desconectar la carpeta.';}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)listView();else if(activeView==='library')void refresh();});
-chrome.tabs?.onActivated?.addListener(()=>{if(activeView==='library')listView();});
+function invalidateContext(){
+  if(activeView!=='library'||document.hidden)return;
+  listView();followContext=true;lastContext=undefined;void followCurrentPatient();
+}
+chrome.tabs?.onActivated?.addListener(invalidateContext);
+chrome.tabs?.onUpdated?.addListener((_id,change)=>{if(change.url)void followCurrentPatient();});
+chrome.runtime.onMessage?.addListener((message,sender)=>{
+  if(sender.id===chrome.runtime.id&&!sender.tab&&message?.type==='nexo.patient.invalidated'&&Object.keys(message).length===1)invalidateContext();
+});
 window.addEventListener('pagehide',clearSummary);
 if(new URLSearchParams(location.search).get('view')==='library')switchView('library');
-async function suggestCurrentPatient(turn){
- $('use-current-patient').hidden=true;
- try{const current=await readContext();if(turn!==sequence||activeView!=='library')return;
-  const found=patients.find(patient=>current.patient&&patient.rut===C.rut(current.patient.rut)&&C.sameName(patient.name,current.patient.name));
-  $('use-current-patient').hidden=!found;
- }catch(_){/* La selección manual sigue disponible. */}
+function matchingPatient(current){
+  if(!current)return null;
+  const found=patients.filter(patient=>samePatient(patient,current));return found.length===1?found[0]:null;
 }
+function samePatient(one,two){
+  if(!one||!two)return !one&&!two;
+  try{return C.rut(one.rut)===C.rut(two.rut)&&C.sameName(one.name,two.name);}catch(_){return false;}
+}
+async function ensureContext(patient){
+  const current=await readContext();
+  if(!samePatient(current.patient,patient))throw Error('La ficha cambió. Vuelve a elegir al paciente.');
+}
+async function followCurrentPatient(){
+  if(contextBusy||activeView!=='library'||document.hidden||!$('drive-setup').hidden)return;
+  contextBusy=true;const turn=sequence;
+  try{
+    const current=await readContext();if(turn!==sequence||activeView!=='library')return;
+    const changed=lastContext!==undefined&&!samePatient(lastContext,current.patient);
+    lastContext=current.patient||null;
+    if(changed || contextSelection&&!samePatient(selected,current.patient)){listView();followContext=true;}
+    const found=matchingPatient(current.patient);$('use-current-patient').hidden=!found;
+    if(followContext&&!selected&&found)selectPatient(found,true);
+  }catch(_){if(turn===sequence&&contextSelection){listView();$('library-status').textContent='No se pudo comprobar la ficha abierta.';}}
+  finally{contextBusy=false;}
+}
+const contextTimer=setInterval(followCurrentPatient,2000);
+window.addEventListener('pagehide',()=>clearInterval(contextTimer));
 $('use-current-patient').addEventListener('click',async()=>{
  const turn=sequence;
  try{const current=await readContext();if(turn!==sequence||activeView!=='library')return;

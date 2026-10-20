@@ -91,6 +91,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async()=>{try{await opening;sendResponse({ok:true});}catch(_){sendResponse({ok:false,error:'No se pudo abrir Nexo.'});}})();
     return true;
   }
+  if(message?.type==='nexo.patient.changed'){
+    if(!eloisaButton(sender)||Object.keys(message).length!==1)return false;
+    (async()=>{
+      try{
+        const tabs=await chrome.tabs.query({active:true,lastFocusedWindow:true});
+        if(tabs.length===1 && tabs[0].id===sender.tab.id)await chrome.runtime.sendMessage({type:'nexo.patient.invalidated'});
+        sendResponse({ok:true});
+      }catch(_){sendResponse({ok:false});}
+    })();return true;
+  }
   if(message?.type==='nexo.patient.context'){
     if(!ownPanel(sender)||Object.keys(message).length!==1)return false;
     (async()=>{try{sendResponse({ok:true,result:await currentPatient()});}catch(_){sendResponse({ok:true,result:{patient:null}});}})();return true;

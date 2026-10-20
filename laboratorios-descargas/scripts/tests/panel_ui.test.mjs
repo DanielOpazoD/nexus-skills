@@ -15,20 +15,20 @@ class Node{
  focus(){this.focused=true;}select(){this.selected=true;}
 }
 function setup({read,clipboard=async()=>{},patients=[patient],context=()=>null,drive=null}={}){
- const nodes=new Map(),copies=[],events={},get=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
+ const timers=new Map(),nodes=new Map(),copies=[],events={},get=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
  const doc={hidden:false,getElementById:get,createElement:tag=>new Node(tag),createDocumentFragment:()=>new Node('#fragment'),addEventListener:(type,fn)=>{events[type]=fn;}};
  const reads=[],requests=[];const response=()=>({id:document.id,sha256:document.sha256,text:body,status:'current',name:patient.name,rut:patient.rut});
- const chrome={runtime:{sendMessage:async message=>{
+ const chrome={runtime:{id:'fixture',onMessage:{addListener:fn=>events.message=fn},sendMessage:async message=>{
   if(message.type==='nexo.library.list')return {ok:true,result:{version:1,available:true,patients,issues:0}};
   requests.push(message);
   if(message.type==='nexo.patient.context')return {ok:true,result:{patient:context()}};
   if(message.type==='nexo.library.read'){reads.push(message);return {ok:true,result:await(read?read(message):response())};}
   return {ok:true,result:{opened:true}};
  }},tabs:{onActivated:{addListener:fn=>events.tab=fn}}};
- const ctx={ClinicalCatalog:catalog,chrome,document:doc,location:{search:''},URLSearchParams,TextEncoder,TextDecoder,Uint8Array,crypto:webcrypto,
+ const ctx={ClinicalCatalog:catalog,chrome,document:doc,location:{search:''},URLSearchParams,setInterval:(fn,ms)=>{timers.set(ms,fn);return ms;},clearInterval:ms=>timers.delete(ms),TextEncoder,TextDecoder,Uint8Array,crypto:webcrypto,
   NexoDriveLibrary:{savedHandle:async()=>drive,DriveLibrary:class{async list(){return {version:1,available:true,patients,issues:0};}}},navigator:{clipboard:{writeText:async text=>{copies.push(text);await clipboard(text);}}},window:{document:doc,addEventListener:(type,fn)=>events[type]=fn}};
  vm.createContext(ctx);vm.runInContext(script,ctx);
- return {$:get,copies,reads,requests,events,doc,ctx,async open(){get('tab-library').events.click();await tick();await tick();},async patient(){get('patient-list').children[0].children[0].events.click();await tick();await tick();},async copy(){await get('copy-summary').events.click();}};
+ return {$:get,copies,reads,requests,events,doc,ctx,timers,async open(){get('tab-library').events.click();await tick();await tick();},async patient(){get('patient-list').children[0].children[0].events.click();await tick();await tick();},async copy(){await get('copy-summary').events.click();}};
 }
 test('elegir paciente muestra texto y copiar exige nueva comprobación; no copia al abrir',async()=>{
  const ui=setup();await ui.open();await ui.patient();assert.equal(ui.$('summary-text').value,body);assert.equal(ui.copies.length,0);assert.equal(ui.reads.length,1);
@@ -83,4 +83,33 @@ test('volver a Resúmenes actualiza la biblioteca sin restaurar texto oculto',as
  const ui=setup();await ui.open();await ui.patient();ui.doc.hidden=true;ui.events.visibilitychange();
  assert.equal(ui.$('summary-text').value,'');ui.doc.hidden=false;ui.events.visibilitychange();await tick();await tick();
  assert.equal(ui.$('library-list-view').hidden,false);assert.equal(ui.$('patient-list').children.length,1);assert.equal(ui.$('summary-text').value,'');
+});
+
+test('la ficha coincidente abre automáticamente sin copiar y un cambio limpia antes de releer',async()=>{
+ let current={name:patient.name,rut:patient.rut};const ui=setup({context:()=>current});await ui.open();await tick();
+ assert.equal(ui.$('summary-view').hidden,false);assert.equal(ui.$('summary-text').value,body);assert.equal(ui.copies.length,0);
+ current={name:'Otro Ficticio',rut:'22222222-2'};
+ ui.events.message({type:'nexo.patient.invalidated'},{id:'fixture'});
+ assert.equal(ui.$('summary-text').value,'');await tick();await tick();assert.equal(ui.$('summary-view').hidden,true);
+});
+test('la selección manual no es reemplazada por un sondeo de la misma ficha',async()=>{
+ const ui=setup({context:()=>({name:patient.name,rut:patient.rut})});await ui.open();await tick();
+ ui.$('change-patient').events.click();await ui.timers.get(2000)();await tick();
+ assert.equal(ui.$('library-list-view').hidden,false);assert.equal(ui.$('summary-text').value,'');
+});
+test('cambiar de paciente durante la lectura o comprobación final impide mostrar o copiar el anterior',async()=>{
+ for(const duringCopy of [false,true]){
+  let current={name:patient.name,rut:patient.rut},calls=0;
+  const ui=setup({context:()=>current,read:async()=>{
+   if(++calls===(duringCopy?2:1))current={name:'Otro Ficticio',rut:'22222222-2'};
+   return {id:document.id,sha256:document.sha256,text:body,status:'current'};
+  }});
+  await ui.open();await tick();if(duringCopy)await ui.copy();
+  assert.equal(ui.$('summary-text').value,'');assert.equal(ui.copies.length,0);assert.equal(ui.$('copy-summary').disabled,true);
+ }
+});
+test('un mensaje de un sitio o un remitente ajeno no invalida la vista',async()=>{
+ const ui=setup();await ui.open();await ui.patient();
+ for(const sender of [{id:'other'},{id:'fixture',tab:{id:2}}])ui.events.message({type:'nexo.patient.invalidated'},sender);
+ assert.equal(ui.$('summary-text').value,body);
 });

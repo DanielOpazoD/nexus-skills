@@ -22,9 +22,14 @@
   },
   "content_scripts": [
     {
-      "matches":["https://clinicohangaroa.eloisa.cl/*"],
-      "js":["eloisa_panel.js"],
-      "run_at":"document_idle"
+      "matches": [
+        "https://clinicohangaroa.eloisa.cl/*"
+      ],
+      "js": [
+        "patient_context.js",
+        "eloisa_panel.js"
+      ],
+      "run_at": "document_idle"
     },
     {
       "matches": [
@@ -36,7 +41,9 @@
       "run_at": "document_idle"
     }
   ],
-  "side_panel": {"default_path":"panel/index.html"},
+  "side_panel": {
+    "default_path": "panel/index.html"
+  },
   "action": {
     "default_title": "Abrir Nexo",
     "default_icon": {
