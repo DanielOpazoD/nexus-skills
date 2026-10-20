@@ -258,12 +258,11 @@ function renderConnection(){
  $('connection-reconnect').hidden=!['permission','not_connected','unavailable','timeout'].includes(connectionState.current.drive?.code);
 }
 async function checkDriveConnection(){
- if(driveBusy||document.hidden)return;driveBusy=true;const generation=driveGeneration;
+ if(driveBusy||document.hidden)return;driveBusy=true;const generation=driveGeneration;let attempt=1;
  try{
   const handle=await D.savedHandle();
   if(!handle){connectionRecord('drive','not_connected');return;}
   if(await handle.queryPermission({mode:'read'})!=='granted'){connectionRecord('drive','permission');return;}
-  let attempt=1;
   await N.read(()=>{
    // Si una lectura no cancelable tarda, reutilizarla sin abrir sondeos paralelos.
    if(!driveProbe){const probe={};driveProbe=probe;probe.promise=(async()=>{
@@ -273,26 +272,26 @@ async function checkDriveConnection(){
    return driveProbe.promise;
   },{isCurrent:()=>!document.hidden,onAttempt:n=>{attempt=n;if(n>1)connectionRecord('drive','retrying',n);}});
   if(generation===driveGeneration)connectionRecord('drive','ok',attempt);
- }catch(error){if(generation===driveGeneration&&N.failure(error).code!=='cancelled')connectionRecord('drive',N.failure(error).code);}
+ }catch(error){if(generation===driveGeneration&&N.failure(error).code!=='cancelled')connectionRecord('drive',N.failure(error).code,attempt);}
  finally{driveBusy=false;if(generation!==driveGeneration)void checkDriveConnection();}
 }
 async function refreshWorker(){
- if(!T||healthBusy||document.hidden)return;healthBusy=true;
+ if(!T||healthBusy||document.hidden)return;healthBusy=true;let localAttempt=1,signalAttempt=1;
  try{
   try{
-   const local=await N.read(()=>bridge({type:'nexo.worker.health'}),{isCurrent:()=>!document.hidden});
+   const local=await N.read(()=>bridge({type:'nexo.worker.health'}),{isCurrent:()=>!document.hidden,onAttempt:n=>{localAttempt=n;if(n>1)connectionRecord('mini','retrying',n);}});
    if(local.app!=='laboratorios-descargas'||local.version!==1)throw Object.assign(Error('Versión local no compatible.'),{code:'incompatible'});
-   if(local.queue&&local.worker?.running){connectionRecord('mini','ok');return;}
+   if(local.queue&&local.worker?.running){connectionRecord('mini','ok',localAttempt);return;}
   }catch(error){
    if(N.failure(error).code==='cancelled')return;
    if(N.failure(error).code==='incompatible'){connectionRecord('mini','incompatible');return;}
-   if(N.failure(error).code!=='cancelled')connectionRecord('mini',N.failure(error).code);
+   if(N.failure(error).code!=='cancelled')connectionRecord('mini',N.failure(error).code,localAttempt);
   }
   const inbox=await T.connection('inbox');
   if(!inbox||await inbox.queryPermission({mode:'read'})!=='granted'){connectionRecord('mini','unknown');return;}
-  const worker=T.worker(await N.read(()=>T.read(inbox,'worker.json'),{isCurrent:()=>!document.hidden}));
-  connectionRecord('mini',({ready:'ok',stale:'stale',attention:'attention',unknown:'clock'})[worker.status]||'unknown');
- }catch(error){if(N.failure(error).code!=='cancelled')connectionRecord('mini',N.failure(error).code);}
+  const worker=T.worker(await N.read(()=>T.read(inbox,'worker.json'),{isCurrent:()=>!document.hidden,onAttempt:n=>{signalAttempt=n;}}));
+  connectionRecord('mini',({ready:'ok',stale:'stale',attention:'attention',unknown:'clock'})[worker.status]||'unknown',signalAttempt);
+ }catch(error){if(N.failure(error).code!=='cancelled')connectionRecord('mini',N.failure(error).code,signalAttempt);}
  finally{healthBusy=false;}
 }
 $('connection-details').addEventListener('toggle',()=>{if($('connection-details').open){void checkDriveConnection();void refreshWorker();}});
