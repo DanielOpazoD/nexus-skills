@@ -1,16 +1,24 @@
 'use strict';
 const $=id=>document.getElementById(id),C=NexoLibraryCore,D=NexoDriveLibrary;
-const T=globalThis.NexoTransport;
+const T=globalThis.NexoTransport,N=NexoConnectivity;
+const connectionState=new N.State(chrome.runtime.getManifest?.().version);
 let activeView='request',provider=null,patients=[],selected=null,selectedDocument=null,sequence=0,loading=false;
 let contextSelection=false,reconnectHandle=null,followContext=true,lastContext,contextBusy=false;
-let pendingUpdate=null,updateBusy=false,copyLock=false,copyBusy=false,returnPatient=null;
+let pendingUpdate=null,updateBusy=false,copyLock=false,copyBusy=false,returnPatient=null,summarySuspended=false;
 const readContext=()=>T?T.bounded(bridge({type:'nexo.patient.context'})):bridge({type:'nexo.patient.context'});
 async function bridge(message){
   const response=await chrome.runtime.sendMessage(message);
-  if(!response?.ok)throw Error(response?.error||'Biblioteca no disponible.');
+  if(!response?.ok)throw Object.assign(Error(response?.error||'Biblioteca no disponible.'),{code:response?.code,retryable:response?.retryable===true});
   return response.result;
 }
-function clearSummary(){sequence++;selectedDocument=null;pendingUpdate=null;copyLock=false;copyBusy=false;showNotice('');$('summary-text').value='';$('copy-summary').disabled=true;$('copy-status').textContent='';$('summary-status').textContent='';}
+async function readLibrary(operation,turn=sequence,component=provider?.kind==='drive'?'drive':'library'){
+ let attempt=1;
+ try{
+  const result=await N.read(operation,{isCurrent:()=>turn===sequence&&!document.hidden&&activeView==='library',onAttempt:n=>{attempt=n;if(n>1)connectionRecord(component,'retrying',n);}});
+  connectionRecord(component,'ok',attempt);return result;
+ }catch(error){const code=N.failure(error).code;if(code!=='cancelled')connectionRecord(component,code,attempt);throw error;}
+}
+function clearSummary(){sequence++;selectedDocument=null;pendingUpdate=null;copyLock=false;copyBusy=false;summarySuspended=false;showNotice('');$('summary-text').value='';$('copy-summary').disabled=true;$('copy-status').textContent='';$('summary-status').textContent='';}
 function listView(){clearSummary();selected=null;contextSelection=false;loading=false;$('refresh-library').disabled=false;$('summary-view').hidden=true;$('library-list-view').hidden=false;$('drive-setup').hidden=true;}
 function switchView(view,focus=false){
   if(activeView===view){if(focus)$('tab-'+view).focus();return;}
@@ -43,7 +51,7 @@ function renderPatients(){
 async function chooseProvider(){
   try{
     const handle=await D.savedHandle();
-    if(handle && await handle.queryPermission({mode:'read'})==='granted'){const drive=new D.DriveLibrary(handle);drive.kind='drive';return drive;}
+    if(handle){if(await handle.queryPermission({mode:'read'})==='granted'){const drive=new D.DriveLibrary(handle);drive.kind='drive';return drive;}connectionRecord('drive','permission');}
   }catch(_){/* El acceso local sigue disponible si falla IndexedDB. */}
   const local={kind:'mini',token:null,list:async()=>{const catalog=await bridge({type:'nexo.library.list'});local.token=catalog.openToken;return catalog;},read:(id,sha256)=>bridge({type:'nexo.library.read',id,sha256}),open:id=>bridge({type:'nexo.library.open',id,token:local.token}),patient:async id=>(await local.list()).patients.find(patient=>patient.id===id)};return local;
 }
@@ -51,10 +59,10 @@ async function refresh(){
   clearSummary();$('retry-library').hidden=true;const request=sequence;
   loading=true;$('refresh-library').disabled=true;$('library-status').textContent='Cargando resúmenes…';
   try{
-    const next=await chooseProvider(),catalog=await (T?T.bounded(next.list()):next.list());
+    const next=await chooseProvider(),catalog=await readLibrary(()=>next.list(),request,next.kind==='drive'?'drive':'library');
     if(request!==sequence || activeView!=='library')return;
     if(!catalog.available)throw Error('Conecta tu carpeta Pacientes de Drive.');
-    if(catalog.version!==1 || !Array.isArray(catalog.patients))throw Error('Biblioteca no compatible.');
+    if(catalog.version!==1 || !Array.isArray(catalog.patients))throw Object.assign(Error('Biblioteca no compatible.'),{code:'incompatible'});
     for(const patient of catalog.patients){C.rut(patient.rut);if(typeof patient.name!=='string'||!Array.isArray(patient.documents))throw Error('Biblioteca pendiente de revisión.');}
     provider=next;$('library-origin').textContent=next.kind==='drive'?'Drive · carpeta sincronizada':'Mini · archivo local';$('connect-drive').textContent=next.kind==='drive'?'Cambiar conexión de Drive':'Conectar carpeta de Drive';patients=catalog.patients.sort((a,b)=>a.name.localeCompare(b.name,'es',{sensitivity:'base'}));loading=false;renderPatients();
     if(catalog.issues)$('library-status').textContent+=' · '+catalog.issues+' archivo(s) requieren revisión';
@@ -77,7 +85,7 @@ function selectPatient(patient,fromContext=false){
 async function readSummary(document){
   clearSummary();const turn=sequence,patient=selected,context=contextSelection?selected:lastContext;$('summary-status').textContent='Cargando…';
   try{
-    const result=await (T?T.bounded(provider.read(document.id,document.sha256)):provider.read(document.id,document.sha256));
+    const result=await readLibrary(()=>provider.read(document.id,document.sha256),turn);
     if(turn!==sequence || selected!==patient || activeView!=='library')return;
     if(context!==undefined)await ensureContext(context);
     if(turn!==sequence||selected!==patient)return;
@@ -96,10 +104,10 @@ function showNotice(message,action='update'){
   $('apply-update').hidden=!message||action!=='update';$('summary-reconnect').hidden=!message||action!=='connect';
 }
 async function checkForUpdate(){
-  if(updateBusy||copyBusy||activeView!=='library'||document.hidden||!selected||!selectedDocument)return;
+  if(summarySuspended||updateBusy||copyBusy||activeView!=='library'||document.hidden||!selected||!selectedDocument)return;
   updateBusy=true;const turn=sequence,patient=selected,previous=selectedDocument,context=contextSelection?selected:lastContext;
   try{
-    const fresh=await (T?T.bounded(provider.patient(patient.id)):provider.patient(patient.id));
+    const fresh=await readLibrary(()=>provider.patient(patient.id),turn);
     if(turn!==sequence||selected!==patient)return;
     if(!fresh||fresh.id!==patient.id||!samePatient(fresh,patient)||!Array.isArray(fresh.documents))throw Error('Expediente no verificable.');
     if(context!==undefined)await ensureContext(context);
@@ -116,7 +124,7 @@ async function checkForUpdate(){
   }catch(error){
     if(turn===sequence){
       if(error.code==='context'){invalidateContext();return;}
-      copyLock=true;$('copy-status').textContent='';$('copy-summary').disabled=true;
+      summarySuspended=true;copyLock=true;$('copy-status').textContent='';$('copy-summary').disabled=true;
       showNotice('No se pudo comprobar '+(provider?.kind==='drive'?'Drive':'la biblioteca')+' · texto conservado',provider?.kind==='drive'?'connect':'update');
     }
   }finally{updateBusy=false;}
@@ -125,7 +133,7 @@ $('apply-update').addEventListener('click',async()=>{
   if(!selected)return;const patient=selected,turn=sequence,context=contextSelection;
   $('apply-update').disabled=true;
   try{
-    const fresh=pendingUpdate||await (T?T.bounded(provider.patient(patient.id)):provider.patient(patient.id));
+    const fresh=pendingUpdate||await readLibrary(()=>provider.patient(patient.id),turn);
     if(turn!==sequence||selected!==patient)return;
     if(!fresh||fresh.id!==patient.id||!samePatient(fresh,patient))throw Error('Expediente no verificable.');
     if(context)await ensureContext(patient);
@@ -145,7 +153,7 @@ $('copy-summary').addEventListener('click',async()=>{
   if(!canCopySelected()||!patient)return;const copyOperation={};copyBusy=copyOperation;$('copy-summary').disabled=true;$('copy-status').textContent='Comprobando…';
   try{
     if(context!==undefined)await ensureContext(context);if(turn!==sequence)return;
-    const result=await (T?T.bounded(provider.read(document.id,document.sha256)):provider.read(document.id,document.sha256));
+    const result=await readLibrary(()=>provider.read(document.id,document.sha256),turn);
     if(turn!==sequence || selected!==patient)return;
     const identity=C.documentIdentity(result.text,patient.name);
     if(result.id!==document.id || result.sha256!==document.sha256 || identity.rut!==patient.rut || !C.sameName(identity.name,patient.name) || !C.canCopy(result))throw Error('El resumen cambió. Actualiza la lista.');
@@ -172,7 +180,7 @@ $('reconnect-drive').addEventListener('click',async()=>{
     const permission=await reconnectHandle.requestPermission({mode:'read'});
     if(turn!==sequence)return;
     if(permission!=='granted')throw Error('Permiso pendiente. Puedes seleccionar otra carpeta.');
-    listView();void refresh();
+    resetDriveProbe();listView();void refresh();
   }catch(error){if(turn===sequence)$('setup-status').textContent=error.message||'No se pudo reconectar la carpeta.';}
 });
 $('cancel-drive').addEventListener('click',()=>{listView();void refresh();});
@@ -183,10 +191,10 @@ $('choose-drive').addEventListener('click',async()=>{
     const handle=await showDirectoryPicker({id:'nexo-patients',mode:'read'});
     if(turn!==sequence)return;
     if(handle.name!==ClinicalCatalog.library.patientsFolder)throw Error('Selecciona la carpeta «Pacientes».');
-    await D.savedHandle(handle);if(turn!==sequence)return;$('setup-status').textContent='Carpeta conectada';listView();void refresh();
+    await D.savedHandle(handle);if(turn!==sequence)return;resetDriveProbe();$('setup-status').textContent='Carpeta conectada';listView();void refresh();
   }catch(error){if(turn===sequence&&error.name!=='AbortError')$('setup-status').textContent=error.name==='SecurityError'?'Abre Nexo en una pestaña para seleccionar la carpeta.':error.message||'No se pudo conectar la carpeta.';}
 });
-$('forget-drive').addEventListener('click',async()=>{try{await D.savedHandle(null);listView();void refresh();}catch(_){$('setup-status').textContent='No se pudo desconectar la carpeta.';}});
+$('forget-drive').addEventListener('click',async()=>{try{await D.savedHandle(null);resetDriveProbe();listView();void refresh();}catch(_){$('setup-status').textContent='No se pudo desconectar la carpeta.';}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)listView();else if(activeView==='library')void refresh();});
 function invalidateContext(){
   if(activeView!=='library'||document.hidden)return;
@@ -240,18 +248,62 @@ $('open-patient-folder').addEventListener('click',async()=>{
   else await provider.open(patient.id);
  }catch(_){if(turn===sequence)$('summary-status').textContent='No se pudo abrir el expediente.';}
 });
-let healthBusy=false;
+let healthBusy=false,driveBusy=false,driveProbe=null,driveGeneration=0;
+function resetDriveProbe(){driveGeneration++;driveProbe=null;void checkDriveConnection();}
+function connectionRecord(component,code,attempt=1){connectionState.record(component,code,attempt);renderConnection();}
+function renderConnection(){
+ $('worker-status').textContent=connectionState.label('mini');
+ $('mini-connection').textContent=connectionState.label('mini');$('drive-connection').textContent=connectionState.label('drive');
+ for(const component of ['mini','drive'])$(component+'-checked').textContent=N.stamp(connectionState.current[component]?.at);
+ $('connection-reconnect').hidden=!['permission','not_connected','unavailable','timeout'].includes(connectionState.current.drive?.code);
+}
+async function checkDriveConnection(){
+ if(driveBusy||document.hidden)return;driveBusy=true;const generation=driveGeneration;
+ try{
+  const handle=await D.savedHandle();
+  if(!handle){connectionRecord('drive','not_connected');return;}
+  if(await handle.queryPermission({mode:'read'})!=='granted'){connectionRecord('drive','permission');return;}
+  let attempt=1;
+  await N.read(()=>{
+   // Si una lectura no cancelable tarda, reutilizarla sin abrir sondeos paralelos.
+   if(!driveProbe){const probe={};driveProbe=probe;probe.promise=(async()=>{
+    if(handle.kind!=='directory'||handle.name!==ClinicalCatalog.library.patientsFolder)throw Object.assign(Error('Carpeta no válida.'),{code:'integrity'});
+    const entries=handle.entries();try{await entries.next();}finally{await entries.return?.();}
+   })().finally(()=>{if(driveProbe===probe)driveProbe=null;});}
+   return driveProbe.promise;
+  },{isCurrent:()=>!document.hidden,onAttempt:n=>{attempt=n;if(n>1)connectionRecord('drive','retrying',n);}});
+  if(generation===driveGeneration)connectionRecord('drive','ok',attempt);
+ }catch(error){if(generation===driveGeneration&&N.failure(error).code!=='cancelled')connectionRecord('drive',N.failure(error).code);}
+ finally{driveBusy=false;if(generation!==driveGeneration)void checkDriveConnection();}
+}
 async function refreshWorker(){
  if(!T||healthBusy||document.hidden)return;healthBusy=true;
  try{
   try{
-   const local=await bridge({type:'nexo.worker.health'});
-   if(local.app==='laboratorios-descargas'&&local.version===1&&local.queue&&local.worker?.running){$('worker-status').textContent=local.worker.drive?'Mini disponible':'Mini · Drive pendiente';return;}
-  }catch(_){/* En el Air se comprueba la señal de Drive. */}
+   const local=await N.read(()=>bridge({type:'nexo.worker.health'}),{isCurrent:()=>!document.hidden});
+   if(local.app!=='laboratorios-descargas'||local.version!==1)throw Object.assign(Error('Versión local no compatible.'),{code:'incompatible'});
+   if(local.queue&&local.worker?.running){connectionRecord('mini','ok');return;}
+  }catch(error){
+   if(N.failure(error).code==='cancelled')return;
+   if(N.failure(error).code==='incompatible'){connectionRecord('mini','incompatible');return;}
+   if(N.failure(error).code!=='cancelled')connectionRecord('mini',N.failure(error).code);
+  }
   const inbox=await T.connection('inbox');
-  if(!inbox||await inbox.queryPermission({mode:'read'})!=='granted'){$('worker-status').textContent='Mini · sin comprobar';return;}
-  $('worker-status').textContent=T.worker(await T.read(inbox,'worker.json')).label;
- }catch(_){$('worker-status').textContent='Mini · sin señal reciente';}
+  if(!inbox||await inbox.queryPermission({mode:'read'})!=='granted'){connectionRecord('mini','unknown');return;}
+  const worker=T.worker(await N.read(()=>T.read(inbox,'worker.json'),{isCurrent:()=>!document.hidden}));
+  connectionRecord('mini',({ready:'ok',stale:'stale',attention:'attention',unknown:'clock'})[worker.status]||'unknown');
+ }catch(error){if(N.failure(error).code!=='cancelled')connectionRecord('mini',N.failure(error).code);}
  finally{healthBusy=false;}
 }
-if(T){void refreshWorker();const healthTimer=setInterval(refreshWorker,30000);window.addEventListener('pagehide',()=>clearInterval(healthTimer));}
+$('connection-details').addEventListener('toggle',()=>{if($('connection-details').open){void checkDriveConnection();void refreshWorker();}});
+$('connection-reconnect').addEventListener('click',()=>{
+ const previous=selected?{patient:selected,context:contextSelection}:null;
+ $('connection-details').open=false;switchView('library');returnPatient=previous;void connectDrive();
+});
+$('copy-diagnostic').addEventListener('click',async()=>{
+ const text=connectionState.diagnostic();$('diagnostic-text').value=text;
+ try{await navigator.clipboard.writeText(text);$('diagnostic-status').textContent='Diagnóstico copiado';$('diagnostic-text').hidden=true;}
+ catch(_){$('diagnostic-text').hidden=false;$('diagnostic-text').focus();$('diagnostic-text').select();$('diagnostic-status').textContent='Texto seleccionado · pulsa ⌘C';}
+});
+renderConnection();void checkDriveConnection();
+if(T){void refreshWorker();const healthTimer=setInterval(()=>{void refreshWorker();void checkDriveConnection();},30000);window.addEventListener('pagehide',()=>clearInterval(healthTimer));}
