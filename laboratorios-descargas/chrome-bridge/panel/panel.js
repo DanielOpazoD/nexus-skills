@@ -3,13 +3,14 @@ const $=id=>document.getElementById(id),C=NexoLibraryCore,D=NexoDriveLibrary;
 const T=globalThis.NexoTransport;
 let activeView='request',provider=null,patients=[],selected=null,selectedDocument=null,sequence=0,loading=false;
 let contextSelection=false,reconnectHandle=null,followContext=true,lastContext,contextBusy=false;
+let pendingUpdate=null,updateBusy=false,copyLock=false,copyBusy=false,returnPatient=null;
 const readContext=()=>T?T.bounded(bridge({type:'nexo.patient.context'})):bridge({type:'nexo.patient.context'});
 async function bridge(message){
   const response=await chrome.runtime.sendMessage(message);
   if(!response?.ok)throw Error(response?.error||'Biblioteca no disponible.');
   return response.result;
 }
-function clearSummary(){sequence++;selectedDocument=null;$('summary-text').value='';$('copy-summary').disabled=true;$('copy-status').textContent='';$('summary-status').textContent='';}
+function clearSummary(){sequence++;selectedDocument=null;pendingUpdate=null;copyLock=false;copyBusy=false;showNotice('');$('summary-text').value='';$('copy-summary').disabled=true;$('copy-status').textContent='';$('summary-status').textContent='';}
 function listView(){clearSummary();selected=null;contextSelection=false;loading=false;$('refresh-library').disabled=false;$('summary-view').hidden=true;$('library-list-view').hidden=false;$('drive-setup').hidden=true;}
 function switchView(view,focus=false){
   if(activeView===view){if(focus)$('tab-'+view).focus();return;}
@@ -44,10 +45,10 @@ async function chooseProvider(){
     const handle=await D.savedHandle();
     if(handle && await handle.queryPermission({mode:'read'})==='granted'){const drive=new D.DriveLibrary(handle);drive.kind='drive';return drive;}
   }catch(_){/* El acceso local sigue disponible si falla IndexedDB. */}
-  const local={kind:'mini',token:null,list:async()=>{const catalog=await bridge({type:'nexo.library.list'});local.token=catalog.openToken;return catalog;},read:(id,sha256)=>bridge({type:'nexo.library.read',id,sha256}),open:id=>bridge({type:'nexo.library.open',id,token:local.token})};return local;
+  const local={kind:'mini',token:null,list:async()=>{const catalog=await bridge({type:'nexo.library.list'});local.token=catalog.openToken;return catalog;},read:(id,sha256)=>bridge({type:'nexo.library.read',id,sha256}),open:id=>bridge({type:'nexo.library.open',id,token:local.token}),patient:async id=>(await local.list()).patients.find(patient=>patient.id===id)};return local;
 }
 async function refresh(){
-  clearSummary();const request=sequence;
+  clearSummary();$('retry-library').hidden=true;const request=sequence;
   loading=true;$('refresh-library').disabled=true;$('library-status').textContent='Cargando resúmenes…';
   try{
     const next=await chooseProvider(),catalog=await (T?T.bounded(next.list()):next.list());
@@ -57,8 +58,10 @@ async function refresh(){
     for(const patient of catalog.patients){C.rut(patient.rut);if(typeof patient.name!=='string'||!Array.isArray(patient.documents))throw Error('Biblioteca pendiente de revisión.');}
     provider=next;$('library-origin').textContent=next.kind==='drive'?'Drive · carpeta sincronizada':'Mini · archivo local';$('connect-drive').textContent=next.kind==='drive'?'Cambiar conexión de Drive':'Conectar carpeta de Drive';patients=catalog.patients.sort((a,b)=>a.name.localeCompare(b.name,'es',{sensitivity:'base'}));loading=false;renderPatients();
     if(catalog.issues)$('library-status').textContent+=' · '+catalog.issues+' archivo(s) requieren revisión';
-    void followCurrentPatient();
-  }catch(error){if(request===sequence){patients=[];provider=null;$('library-origin').textContent='';loading=false;renderPatients();$('library-status').textContent=error.message||'No se pudo cargar la biblioteca.';}}
+    const resume=returnPatient;returnPatient=null;
+    const previous=resume&&patients.find(patient=>patient.id===resume.patient.id&&samePatient(patient,resume.patient));
+    if(previous)selectPatient(previous,resume.context);else void followCurrentPatient();
+  }catch(error){if(request===sequence){patients=[];provider=null;$('library-origin').textContent='';loading=false;renderPatients();$('library-status').textContent=error.message||'No se pudo cargar la biblioteca.';$('retry-library').hidden=false;}}
   finally{if(request===sequence){loading=false;$('refresh-library').disabled=false;}}
 }
 function selectPatient(patient,fromContext=false){
@@ -66,51 +69,103 @@ function selectPatient(patient,fromContext=false){
   $('open-patient-folder').hidden=!(patient.folderUrl||patient.openable&&provider?.open);
   $('patient-name').textContent=patient.name;$('patient-rut').textContent=patient.rut;$('summary-date').textContent='';
   $('summary-version').replaceChildren();$('version-control').hidden=patient.documents.length<2;
-  if(!patient.documents.length){$('summary-status').textContent='No hay un resumen TXT disponible para este paciente.';return;}
+  if(!patient.documents.length){showNotice('Resumen aún no disponible');return;}
   const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Elegir versión';$('summary-version').append(placeholder);
   for(const document of patient.documents){const option=window.document.createElement('option');option.value=document.id;option.textContent=document.date||'Archivo existente';$('summary-version').append(option);}
   if(patient.documents.length===1)void readSummary(patient.documents[0]);
 }
 async function readSummary(document){
-  clearSummary();const turn=sequence,patient=selected;$('summary-status').textContent='Cargando…';
+  clearSummary();const turn=sequence,patient=selected,context=contextSelection?selected:lastContext;$('summary-status').textContent='Cargando…';
   try{
     const result=await (T?T.bounded(provider.read(document.id,document.sha256)):provider.read(document.id,document.sha256));
     if(turn!==sequence || selected!==patient || activeView!=='library')return;
-    if(contextSelection)await ensureContext(patient);
+    if(context!==undefined)await ensureContext(context);
     if(turn!==sequence||selected!==patient)return;
     const identity=C.documentIdentity(result.text,patient.name);
     if(result.id!==document.id || result.sha256!==document.sha256 || identity.rut!==patient.rut || !C.sameName(identity.name,patient.name))throw Error('La identidad del resumen no coincide.');
     selectedDocument={...document,status:result.status};$('summary-text').value=result.text;
     $('summary-date').textContent=[document.date?'Guardado '+document.date:'Archivo existente',document.referenceDate?'Referencia '+document.referenceDate:''].filter(Boolean).join(' · ');
     $('summary-status').textContent=C.canCopy(selectedDocument)?'':result.status==='stale'?'Documentos nuevos o distintos · resumen pendiente de revisión.':'Archivo modificado · revisión pendiente.';
-    $('copy-summary').disabled=!C.canCopy(selectedDocument);
-  }catch(error){if(turn===sequence){$('summary-text').value='';$('summary-status').textContent=error.message||'No se pudo leer el resumen.';$('copy-summary').disabled=true;}}
+    $('copy-summary').disabled=!canCopySelected();
+    if(!C.canCopy(selectedDocument))showNotice(result.status==='stale'?'Resumen pendiente de revisión':'Archivo modificado · revisión pendiente');
+  }catch(error){if(turn===sequence){if(error.code==='context'){invalidateContext();return;}$('summary-text').value='';$('summary-status').textContent=error.message||'No se pudo leer el resumen.';$('copy-summary').disabled=true;showNotice('Revisa la conexión o actualiza el resumen.',provider?.kind==='drive'?'connect':'update');}}
 }
+function canCopySelected(){return !copyBusy&&!copyLock&&C.canCopy(selectedDocument);}
+function showNotice(message,action='update'){
+  $('summary-notice').hidden=!message;$('summary-notice-text').textContent=message;
+  $('apply-update').hidden=!message||action!=='update';$('summary-reconnect').hidden=!message||action!=='connect';
+}
+async function checkForUpdate(){
+  if(updateBusy||copyBusy||activeView!=='library'||document.hidden||!selected||!selectedDocument)return;
+  updateBusy=true;const turn=sequence,patient=selected,previous=selectedDocument,context=contextSelection?selected:lastContext;
+  try{
+    const fresh=await (T?T.bounded(provider.patient(patient.id)):provider.patient(patient.id));
+    if(turn!==sequence||selected!==patient)return;
+    if(!fresh||fresh.id!==patient.id||!samePatient(fresh,patient)||!Array.isArray(fresh.documents))throw Error('Expediente no verificable.');
+    if(context!==undefined)await ensureContext(context);
+    if(turn!==sequence||selected!==patient)return;
+    patients=patients.map(item=>item.id===fresh.id?fresh:item);
+    const unchanged=fresh.documents.find(item=>item.id===previous.id&&item.sha256===previous.sha256&&item.status===previous.status);
+    if(unchanged){copyLock=false;pendingUpdate=null;showNotice('');}
+    else{
+      pendingUpdate=fresh;copyLock=true;$('copy-status').textContent='';
+      const different=fresh.documents.some(item=>item.id!==previous.id||item.sha256!==previous.sha256);
+      showNotice(different?'Nuevo resumen disponible':'Resumen pendiente de revisión · texto anterior conservado');
+    }
+    $('copy-summary').disabled=!canCopySelected();
+  }catch(error){
+    if(turn===sequence){
+      if(error.code==='context'){invalidateContext();return;}
+      copyLock=true;$('copy-status').textContent='';$('copy-summary').disabled=true;
+      showNotice('No se pudo comprobar '+(provider?.kind==='drive'?'Drive':'la biblioteca')+' · texto conservado',provider?.kind==='drive'?'connect':'update');
+    }
+  }finally{updateBusy=false;}
+}
+$('apply-update').addEventListener('click',async()=>{
+  if(!selected)return;const patient=selected,turn=sequence,context=contextSelection;
+  $('apply-update').disabled=true;
+  try{
+    const fresh=pendingUpdate||await (T?T.bounded(provider.patient(patient.id)):provider.patient(patient.id));
+    if(turn!==sequence||selected!==patient)return;
+    if(!fresh||fresh.id!==patient.id||!samePatient(fresh,patient))throw Error('Expediente no verificable.');
+    if(context)await ensureContext(patient);
+    if(turn!==sequence||selected!==patient)return;
+    const updated=patients.map(item=>item.id===fresh.id?fresh:item);patients=updated;
+    selectPatient(fresh,context);
+  }catch(error){if(turn===sequence){if(error.code==='context')invalidateContext();else showNotice('No se pudo actualizar. Texto anterior conservado.',provider?.kind==='drive'?'connect':'update');}}
+  finally{$('apply-update').disabled=false;}
+});
+const summaryTimer=setInterval(checkForUpdate,15000);
+window.addEventListener('pagehide',()=>clearInterval(summaryTimer));
+window.addEventListener('focus',()=>{void followCurrentPatient();void checkForUpdate();});
 $('summary-version').addEventListener('change',()=>{const document=selected?.documents.find(d=>d.id===$('summary-version').value);if(document)void readSummary(document);else clearSummary();});
 $('patient-search').addEventListener('input',renderPatients);$('change-patient').addEventListener('click',()=>{followContext=false;listView();});$('refresh-library').addEventListener('click',()=>{listView();void refresh();});
 $('copy-summary').addEventListener('click',async()=>{
-  const document=selectedDocument,patient=selected,turn=sequence;
-  if(!C.canCopy(document)||!patient)return;$('copy-summary').disabled=true;$('copy-status').textContent='Comprobando…';
+  const document=selectedDocument,patient=selected,turn=sequence,context=contextSelection?selected:lastContext;
+  if(!canCopySelected()||!patient)return;const copyOperation={};copyBusy=copyOperation;$('copy-summary').disabled=true;$('copy-status').textContent='Comprobando…';
   try{
-    if(contextSelection)await ensureContext(patient);if(turn!==sequence)return;
+    if(context!==undefined)await ensureContext(context);if(turn!==sequence)return;
     const result=await (T?T.bounded(provider.read(document.id,document.sha256)):provider.read(document.id,document.sha256));
     if(turn!==sequence || selected!==patient)return;
     const identity=C.documentIdentity(result.text,patient.name);
     if(result.id!==document.id || result.sha256!==document.sha256 || identity.rut!==patient.rut || !C.sameName(identity.name,patient.name) || !C.canCopy(result))throw Error('El resumen cambió. Actualiza la lista.');
-    if(contextSelection)await ensureContext(patient);
+    if(context!==undefined)await ensureContext(context);
     if(turn!==sequence||selected!==patient)return;
     $('summary-text').value=result.text;
     try{await navigator.clipboard.writeText(result.text);if(turn===sequence)$('copy-status').textContent='Copiado';}
     catch(_){if(turn===sequence){$('summary-text').focus();$('summary-text').select();$('copy-status').textContent='Texto seleccionado · pulsa ⌘C';}}
-  }catch(error){if(turn===sequence){clearSummary();$('summary-status').textContent=error.message||'No se pudo comprobar el resumen.';}}
-  finally{if(turn===sequence)$('copy-summary').disabled=!C.canCopy(selectedDocument);}
+  }catch(error){if(turn===sequence){if(error.code==='context'){clearSummary();$('summary-status').textContent=error.message;}else{copyLock=true;$('copy-status').textContent='';const changed=/cambió|identidad/.test(error.message||'');showNotice(changed?'El resumen cambió · texto anterior conservado':'No se pudo comprobar el resumen. Texto anterior conservado.',changed?'update':provider?.kind==='drive'?'connect':'update');}}}
+  finally{if(copyBusy===copyOperation)copyBusy=false;if(turn===sequence)$('copy-summary').disabled=!canCopySelected();}
 });
 $('open-full').addEventListener('click',async()=>{try{await bridge({type:'nexo.panel.tab',view:activeView});}catch(_){$('library-status').textContent='No se pudo abrir la pestaña.';}});
-$('connect-drive').addEventListener('click',async()=>{
+async function connectDrive(){
   listView();const turn=sequence;reconnectHandle=null;$('reconnect-drive').hidden=true;$('setup-status').textContent='';$('library-list-view').hidden=true;$('drive-setup').hidden=false;
   try{const handle=await D.savedHandle();if(turn!==sequence)return;reconnectHandle=handle||null;$('reconnect-drive').hidden=!handle;}
   catch(_){/* Se puede seleccionar otra carpeta si no se recupera el permiso. */}
-});
+}
+$('connect-drive').addEventListener('click',()=>{returnPatient=null;return connectDrive();});
+$('summary-reconnect').addEventListener('click',()=>{returnPatient=selected?{patient:selected,context:contextSelection}:null;return connectDrive();});
+$('retry-library').addEventListener('click',()=>void refresh());
 $('reconnect-drive').addEventListener('click',async()=>{
   if(!reconnectHandle)return;const turn=sequence;
   try{
@@ -154,10 +209,10 @@ function samePatient(one,two){
 }
 async function ensureContext(patient){
   const current=await readContext();
-  if(!samePatient(current.patient,patient))throw Error('La ficha cambió. Vuelve a elegir al paciente.');
+  if(!samePatient(current.patient,patient))throw Object.assign(Error('La ficha cambió. Vuelve a elegir al paciente.'),{code:'context'});
 }
 async function followCurrentPatient(){
-  if(contextBusy||activeView!=='library'||document.hidden||!$('drive-setup').hidden)return;
+  if(contextBusy||loading||!provider||activeView!=='library'||document.hidden||!$('drive-setup').hidden)return;
   contextBusy=true;const turn=sequence;
   try{
     const current=await readContext();if(turn!==sequence||activeView!=='library')return;

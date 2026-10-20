@@ -1,4 +1,4 @@
-# Panel de Eloísa · Nexo 3.6.0
+# Panel de Eloísa · Nexo 3.7.0
 
 El círculo **N** azul/violeta aparece en Eloísa Ambulatorio, dentro de `/main`. Abre el panel lateral nativo de Chrome junto a la ficha; Chrome permite ajustar su ancho y cerrarlo. El botón de Nexo en la barra de Chrome abre el mismo panel. Requiere Chrome 116 o posterior. **↗** abre el espacio actual en una pestaña completa.
 
@@ -35,6 +35,14 @@ Las entregas nuevas conservan las versiones de fuentes y huellas de originales c
 
 Abrir o copiar relee únicamente el expediente elegido, resolviendo su ruta desde la carpeta autorizada; no vuelve a recorrer todos los pacientes. Antes de cada copia, comprobar permiso, identidad y hash; releer el índice antes y después del archivo para detectar reemplazos durante la lectura. Una entrega anteriormente indexada no puede pasar a histórica porque desapareció su índice. Si cambiaron, pedir actualizar la lista; no copiar texto previo. Una respuesta tardía no debe reponer otro paciente. Cambiar de espacio, pestaña activa, paciente u ocultar la vista limpia el texto previo. Al volver a una vista visible de Resúmenes se actualiza la biblioteca; ↻ permite actualizarla manualmente. La lista muestra la fecha disponible más reciente, sin elegir automáticamente entre versiones históricas. El historial y los originales permanecen en Drive.
 
+## Actualización durante la lectura y recuperación
+
+Mientras el panel está visible y hay un resumen abierto, comprobar cada 15 segundos la entrega del paciente seleccionado. Drive relee solo ese expediente; el proveedor local consulta su catálogo actual. Un resumen diferente muestra **Nuevo resumen disponible → Actualizar resumen**, sin reemplazar el texto, mover su posición ni copiarlo. Mantener nombre/RUT y bloquear la copia de la versión anterior. Aplicar la nueva versión requiere pulsación y revalida identidad, archivo, hash y, cuando corresponda, ficha activa. Versiones históricas ambiguas siguen requiriendo elección. No redacta ni actualiza clínicamente un resumen pendiente.
+
+Una desconexión conserva la vista anterior con copia bloqueada y **Reconectar Drive**; la reconexión recupera el paciente si sigue identificado. Un fallo local ofrece **Actualizar resumen** o **Reintentar conexión**. No afirmar que hay un resumen nuevo si solo falló su comprobación. Un cambio de paciente, espacio, pestaña o vista oculta limpia el texto incluso con lecturas o comprobaciones pendientes. El sondeo no persiste textos ni consulta portales.
+
+En el lanzador del Mini, **Reintentar fuentes pendientes** aparece junto al estado de las fuentes. Reanuda el trabajo original conservando ID, alcance y archivos; el motor omite fuentes completas. Las sesiones vencidas requieren iniciar sesión y reintentar sesiones. El formulario portátil del Air no ejecuta ese reintento local: enviar o copiar otra solicitud no equivale a reanudar la anterior.
+
 ## Fronteras y permisos
 
 El sitio recibe únicamente el botón circular, aislado con Shadow DOM; el panel pertenece a la extensión. No insertar resúmenes en el DOM de Eloísa. El trabajador acepta mensajes de biblioteca solo desde `panel/index.html` de su propia extensión. Las rutas locales son fijas; no acepta URLs ni rutas de archivo libres. No exportar textos por mensajes a la página ni habilitar `web_accessible_resources` para el panel.
@@ -45,6 +53,6 @@ El sitio recibe únicamente el botón circular, aislado con Shadow DOM; el panel
 
 Actualizar la misma carpeta instalada, **Recargar** Nexo en Administrar extensiones y recargar la pestaña de Eloísa. No afirmar que una instalación ya está activa por haber copiado sus archivos. El ZIP se empaqueta desde HEAD con `package_extension.py`.
 
-`./check.command` comprueba contratos compartidos, identidades, homónimos, archivos modificados, vigencia, lectura acotada al expediente, reemplazo de índice durante la lectura, reconexión de permiso, recuperación, mensajería y cambios de contexto con datos ficticios. GitHub Actions prepara el runtime fijado y repite esas comprobaciones en cada PR. Las pruebas visuales se realizan con un expediente ficticio; no equivalen a una descarga clínica ni confirman sincronización Air → Mini.
+`./check.command` comprueba contratos compartidos, identidades, homónimos, archivos modificados, vigencia, lectura acotada al expediente, reemplazo de índice durante la lectura, reconexión de permiso, avisos sin reemplazo de texto, respuesta tardía de comprobación, seguimiento contextual, recuperación, mensajería y cambios de contexto con datos ficticios. GitHub Actions prepara el runtime fijado y repite esas comprobaciones en cada PR. Las pruebas visuales se realizan con un expediente ficticio; no equivalen a una descarga clínica ni confirman sincronización Air → Mini.
 
 Referencia de plataforma: [File System Access, permisos y handles recordados](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access). La autorización se solicita por pulsación; no desde una actualización automática.

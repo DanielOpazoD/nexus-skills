@@ -14,19 +14,19 @@ class Node{
  setAttribute(key,value){this.attributes[key]=value;}
  focus(){this.focused=true;}select(){this.selected=true;}
 }
-function setup({read,clipboard=async()=>{},patients=[patient],context=()=>null,drive=null}={}){
+function setup({read,clipboard=async()=>{},patients=[patient],context=()=>null,drive=null,check}={}){
  const timers=new Map(),nodes=new Map(),copies=[],events={},get=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
  const doc={hidden:false,getElementById:get,createElement:tag=>new Node(tag),createDocumentFragment:()=>new Node('#fragment'),addEventListener:(type,fn)=>{events[type]=fn;}};
  const reads=[],requests=[];const response=()=>({id:document.id,sha256:document.sha256,text:body,status:'current',name:patient.name,rut:patient.rut});
  const chrome={runtime:{id:'fixture',onMessage:{addListener:fn=>events.message=fn},sendMessage:async message=>{
-  if(message.type==='nexo.library.list')return {ok:true,result:{version:1,available:true,patients,issues:0}};
+  if(message.type==='nexo.library.list')return {ok:true,result:{version:1,available:true,patients:check&&requests.length?await Promise.all(patients.map(p=>check(p.id))):patients,issues:0}};
   requests.push(message);
   if(message.type==='nexo.patient.context')return {ok:true,result:{patient:context()}};
   if(message.type==='nexo.library.read'){reads.push(message);return {ok:true,result:await(read?read(message):response())};}
   return {ok:true,result:{opened:true}};
  }},tabs:{onActivated:{addListener:fn=>events.tab=fn}}};
  const ctx={ClinicalCatalog:catalog,chrome,document:doc,location:{search:''},URLSearchParams,setInterval:(fn,ms)=>{timers.set(ms,fn);return ms;},clearInterval:ms=>timers.delete(ms),TextEncoder,TextDecoder,Uint8Array,crypto:webcrypto,
-  NexoDriveLibrary:{savedHandle:async()=>drive,DriveLibrary:class{async list(){return {version:1,available:true,patients,issues:0};}}},navigator:{clipboard:{writeText:async text=>{copies.push(text);await clipboard(text);}}},window:{document:doc,addEventListener:(type,fn)=>events[type]=fn}};
+  NexoDriveLibrary:{savedHandle:async()=>drive,DriveLibrary:class{async list(){return {version:1,available:true,patients,issues:0};}async patient(id){return check?check(id):patients.find(p=>p.id===id);}}},navigator:{clipboard:{writeText:async text=>{copies.push(text);await clipboard(text);}}},window:{document:doc,addEventListener:(type,fn)=>events[type]=fn}};
  vm.createContext(ctx);vm.runInContext(script,ctx);
  return {$:get,copies,reads,requests,events,doc,ctx,timers,async open(){get('tab-library').events.click();await tick();await tick();},async patient(){get('patient-list').children[0].children[0].events.click();await tick();await tick();},async copy(){await get('copy-summary').events.click();}};
 }
@@ -53,7 +53,7 @@ test('respuesta tardía no repone el paciente después de cambiar de mundo',asyn
 });
 test('el texto modificado entre vista y copia no llega al portapapeles',async()=>{
  let calls=0;const ui=setup({read:async()=>({id:document.id,sha256:++calls===1?document.sha256:'c'.repeat(64),text:body,status:'current'})});
- await ui.open();await ui.patient();await ui.copy();assert.equal(ui.copies.length,0);assert.equal(ui.$('summary-text').value,'');assert.equal(ui.$('copy-summary').disabled,true);
+ await ui.open();await ui.patient();await ui.copy();assert.equal(ui.copies.length,0);assert.equal(ui.$('summary-text').value,body);assert.equal(ui.$('copy-summary').disabled,true);assert.match(ui.$('summary-notice-text').textContent,/conservado/);
 });
 test('volver desde la conexión de Drive recupera la lista y sus controles',async()=>{
  const ui=setup();await ui.open();ui.$('connect-drive').events.click();assert.equal(ui.$('drive-setup').hidden,false);
@@ -112,4 +112,38 @@ test('un mensaje de un sitio o un remitente ajeno no invalida la vista',async()=
  const ui=setup();await ui.open();await ui.patient();
  for(const sender of [{id:'other'},{id:'fixture',tab:{id:2}}])ui.events.message({type:'nexo.patient.invalidated'},sender);
  assert.equal(ui.$('summary-text').value,body);
+});
+
+test('una nueva versión avisa sin reemplazar texto ni posición; sólo se aplica al pulsar',async()=>{
+ let newer=false;
+ const nextDoc={...document,id:'c'.repeat(64),sha256:'d'.repeat(64),date:'21-10-2026'},nextBody=body+'\nNueva evaluación documentada.';
+ const ui=setup({check:()=>({...patient,documents:[newer?nextDoc:document]}),read:async message=>({id:message.id,sha256:message.sha256,text:message.id===nextDoc.id?nextBody:body,status:'current'})});
+ await ui.open();await ui.patient();await ui.copy();assert.equal(ui.$('copy-status').textContent,'Copiado');ui.$('summary-text').scrollTop=123;newer=true;
+ await ui.timers.get(15000)();await tick();
+ assert.equal(ui.$('summary-text').value,body);assert.equal(ui.$('summary-text').scrollTop,123);assert.equal(ui.$('patient-name').textContent,patient.name);
+ assert.equal(ui.$('summary-notice-text').textContent,'Nuevo resumen disponible');assert.equal(ui.$('copy-status').textContent,'');assert.equal(ui.$('copy-summary').disabled,true);
+ await ui.$('apply-update').events.click();await tick();await tick();
+ assert.equal(ui.$('summary-text').value,nextBody);assert.equal(ui.$('summary-notice').hidden,true);assert.equal(ui.$('copy-summary').disabled,false);assert.equal(ui.copies.length,1);
+});
+test('desconexión conserva texto y ofrece reconectar; no afirma que haya una versión nueva',async()=>{
+ let failing=false;const drive={queryPermission:async()=> 'granted'};
+ const ui=setup({drive,check:()=>{if(failing)throw Error('Permiso revocado');return patient;}});
+ // El doble de Drive usa lectura explícita para probar la recuperación del panel.
+ ui.ctx.NexoDriveLibrary.DriveLibrary.prototype.read=async()=>({id:document.id,sha256:document.sha256,text:body,status:'current'});
+ await ui.open();await ui.patient();failing=true;
+ await ui.timers.get(15000)();assert.equal(ui.$('summary-text').value,body);assert.equal(ui.$('copy-summary').disabled,true);
+ assert.equal(ui.$('summary-reconnect').hidden,false);assert.doesNotMatch(ui.$('summary-notice-text').textContent,/Nuevo resumen/);
+});
+test('un sondeo tardío de otra selección no muestra avisos ni restaura texto',async()=>{
+ let finish;const ui=setup({check:()=>new Promise(resolve=>finish=resolve)});await ui.open();await ui.patient();
+ const checking=ui.timers.get(15000)();ui.$('tab-request').events.click();finish({...patient,documents:[]});await checking;
+ assert.equal(ui.$('summary-text').value,'');assert.equal(ui.$('summary-notice').hidden,true);
+});
+
+test('cambiar la ficha durante una copia manual también invalida la selección anterior',async()=>{
+ let current=null,calls=0;const ui=setup({context:()=>current,read:async message=>{
+  if(++calls===2)current={name:'Otro Ficticio',rut:'22222222-2'};
+  return {id:document.id,sha256:document.sha256,text:body,status:'current'};
+ }});await ui.open();await ui.patient();await ui.copy();
+ assert.equal(ui.copies.length,0);assert.equal(ui.$('summary-text').value,'');assert.equal(ui.$('copy-summary').disabled,true);
 });
