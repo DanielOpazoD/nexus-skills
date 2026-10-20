@@ -10,7 +10,7 @@ function eloisaButton(sender){
   catch(_){return false;}
 }
 async function panelRequest(message){
-  const allowed=message.type==='nexo.library.read'?['type','id','sha256']:message.type==='nexo.panel.tab'?['type','view']:['type'];
+  const allowed=message.type==='nexo.library.read'?['type','id','sha256']:message.type==='nexo.library.open'?['type','id','token']:message.type==='nexo.panel.tab'?['type','view']:['type'];
   if(Object.keys(message).some(key=>!allowed.includes(key)))throw Error('Solicitud no válida.');
   if(message.type==='nexo.panel.tab'){
     if(!['request','library'].includes(message.view))throw Error('Vista no válida.');
@@ -21,7 +21,12 @@ async function panelRequest(message){
     if(!/^[a-f0-9]{64}$/.test(message.id)||!/^[a-f0-9]{64}$/.test(message.sha256))throw Error('Documento no válido.');
     path+='/read?id='+encodeURIComponent(message.id)+'&sha256='+encodeURIComponent(message.sha256);
   }
-  const response=await fetch('http://127.0.0.1:8765'+path,{cache:'no-store',credentials:'omit',redirect:'error',signal:AbortSignal.timeout(8000)});
+  let options={cache:'no-store',credentials:'omit',redirect:'error',signal:AbortSignal.timeout(8000)};
+  if(message.type==='nexo.library.open'){
+    if(!/^[a-f0-9]{64}$/.test(message.id)||typeof message.token!=='string'||!/^[A-Za-z0-9_-]{32,128}$/.test(message.token))throw Error('Expediente no válido.');
+    path='/api/library/open';options={...options,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:message.id,token:message.token})};
+  }
+  const response=await fetch('http://127.0.0.1:8765'+path,options);
   if(!response.ok || !response.headers.get('content-type')?.includes('application/json'))throw Error('Biblioteca local no disponible.');
   const raw=await response.text();if(raw.length>2097152)throw Error('Biblioteca demasiado grande.');
   return JSON.parse(raw);

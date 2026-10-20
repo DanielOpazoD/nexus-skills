@@ -8,6 +8,9 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from clinical_archive import ArchiveError
 from clinical_library import ClinicalLibrary, RULES, document_identity, filename_date, same_name
+from clinical_publication import publish,note_evidence
+from clinical_archive import digest
+from test_access import pdf
 
 RUT='11111111-1';NAME='Paciente Ficticio'
 TEXT='Paciente: '+NAME+'\nRUT: '+RUT+'\nFecha de elaboración: 20-10-2026\nFecha de referencia: 19-10-2026\n\nAntecedentes documentados el 15-10-2026.\n'
@@ -70,5 +73,34 @@ class LibraryTests(unittest.TestCase):
         (second_reading/'Resumen de antecedentes.txt').write_text(TEXT.replace(NAME,'Otra Persona').replace(RUT,'22222222-2'))
         (folder/RULES['controlFolder']/RULES['manifestFilename']).write_text('{broken')
         catalog=self.library.list();self.assertEqual(len(catalog['patients']),1);self.assertGreater(catalog['issues'],0)
+    def test_folder_open_is_explicit_and_rechecks_identity_without_accepting_a_path(self):
+        folder,_=self.patient();catalog=self.library.list();ident=catalog['patients'][0]['id'];calls=[]
+        self.library.open(ident,runner=lambda args,**kwargs:calls.append(args))
+        self.assertEqual(calls,[['/usr/bin/open',str(folder/RULES['readingFolder'])]])
+        with self.assertRaises(ValueError):self.library.open('../outside',runner=lambda *args:None)
+        (folder/RULES['controlFolder']/RULES['identityFilename']).write_text('Paciente: '+NAME+'\nRUT: 22222222-2\n')
+        with self.assertRaises(ValueError):self.library.open(ident,runner=lambda *args:None)
+    def test_new_source_invalidates_prior_summary_and_replay_cannot_restore_freshness(self):
+        folder,reading=self.patient();source=self.root/'source.pdf';source.write_bytes(pdf())
+        draft=self.root/'20-10-2026 Resumen antecedentes.txt';draft.write_text(TEXT)
+        old=dict(id='old',as_of='2026-10-20',started_at='2026-10-20T10:00:00+00:00')
+        new=dict(id='new',as_of='2026-10-20',started_at='2026-10-20T11:00:00+00:00')
+        publish(source,folder,digest(source),'source-eloisa',old)
+        publish(draft,folder,digest(draft),'delivery-antecedentes',old,revision='revision-1')
+        self.assertEqual(self.library.list()['patients'][0]['documents'][0]['status'],'current')
+        publish(source,folder,digest(source),'source-eloisa',new)
+        self.assertEqual(self.library.list()['patients'][0]['documents'][0]['status'],'current')
+        source.write_bytes(pdf(id='2'));publish(source,folder,digest(source),'source-eloisa',new)
+        self.assertEqual(self.library.list()['patients'][0]['documents'][0]['status'],'stale')
+        publish(draft,folder,digest(draft),'delivery-antecedentes',old,revision='revision-1')
+        self.assertEqual(self.library.list()['patients'][0]['documents'][0]['status'],'stale')
+        publish(draft,folder,digest(draft),'delivery-antecedentes',new,revision='revision-2')
+        self.assertEqual(self.library.list()['patients'][0]['documents'][0]['status'],'current')
+    def test_new_attachment_bytes_alone_invalidate_summary_and_identical_copy_does_not(self):
+        folder,_=self.patient();draft=self.root/'20-10-2026 Resumen antecedentes.txt';draft.write_text(TEXT)
+        job=dict(id='job',as_of='2026-10-20',started_at='2026-10-20T10:00:00+00:00')
+        note_evidence(folder,{'a'*64});publish(draft,folder,digest(draft),'delivery-antecedentes',job,revision='one')
+        note_evidence(folder,{'a'*64});self.assertEqual(self.library.list()['patients'][0]['documents'][0]['status'],'current')
+        note_evidence(folder,{'b'*64});self.assertEqual(self.library.list()['patients'][0]['documents'][0]['status'],'stale')
 
 if __name__=='__main__':unittest.main()

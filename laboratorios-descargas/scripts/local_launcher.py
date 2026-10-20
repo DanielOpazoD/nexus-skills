@@ -10,6 +10,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import subprocess
 import sys
@@ -188,6 +189,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 library=self.launcher.library()
                 result=library.list() if path.path=='/api/library' else library.read(query.get('id',[''])[0],query.get('sha256',[''])[0])
+                if path.path=='/api/library':result['openToken']=self.launcher.library_nonce
                 self.send_json(200,result)
             except (ValueError,OSError):self.send_json(409,{'error':'El resumen cambió o no está disponible. Actualiza la lista.'})
             return
@@ -256,12 +258,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         path = urlsplit(self.path).path
         origin = self.headers.get('Origin','')
-        if path != '/api/sessions' and origin not in (
+        extension_open=path=='/api/library/open' and re.fullmatch(r'chrome-extension://[a-p]{32}',origin)
+        if path != '/api/sessions' and not extension_open and origin not in (
                 'http://127.0.0.1:{}'.format(self.server.server_port),
                 'http://localhost:{}'.format(self.server.server_port)):
             self.send_json(403, {'error':'Origen no permitido.'})
             return
-        if path not in ('/api/jobs','/api/import','/api/sessions','/api/cancel','/api/credentials','/api/retry','/api/archive','/api/delivery/register'):
+        if path not in ('/api/jobs','/api/import','/api/sessions','/api/cancel','/api/credentials','/api/retry','/api/archive','/api/delivery/register','/api/library/open'):
             self.send_json(404, {'error':'Ruta no disponible.'})
             return
         try:
@@ -272,7 +275,11 @@ class Handler(BaseHTTPRequestHandler):
             from clinical_request import decode_json
             body = decode_json(self.rfile.read(size))
             if not isinstance(body, dict):raise ValueError('Solicitud inválida.')
-            if path == '/api/import':
+            if path=='/api/library/open':
+                if set(body)!={'id','token'} or not isinstance(body.get('token'),str) or not secrets.compare_digest(body['token'],self.launcher.library_nonce):raise ValueError('Permiso de apertura vencido.')
+                try:result=self.launcher.library().open(body['id'])
+                except (OSError,subprocess.SubprocessError):raise ValueError('No se pudo abrir el expediente; los archivos se conservan.') from None
+            elif path == '/api/import':
                 from portable_request import parse
                 packet = parse(json.dumps(body))
                 result = self.launcher.new_job(dict(packet['request'], requestId=packet['id'], asOf=packet['asOf']))

@@ -4,9 +4,13 @@ import argparse
 import hashlib
 import io
 import json
+from html.parser import HTMLParser
+import posixpath
+import re
 from pathlib import Path, PurePosixPath
 import subprocess
 import zipfile
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = 'laboratorios-descargas/chrome-bridge/'
@@ -14,6 +18,27 @@ PREFIX = 'laboratorios-descargas/chrome-bridge/'
 
 def git(*args):
     return subprocess.check_output(['git', *args], cwd=ROOT)
+
+
+def validate_files(files):
+    """La presencia del HTML no basta: comprobar sus recursos e imports estáticos."""
+    def require(parent,reference):
+        url=urlsplit(reference)
+        if not url.path or url.scheme=='data':return
+        if url.scheme or url.netloc:raise ValueError('Recurso externo no empaquetado: '+reference)
+        path=posixpath.normpath(posixpath.join(posixpath.dirname(parent),url.path))
+        if path.startswith('../') or path not in files:raise ValueError('Falta recurso de extensión: '+path)
+    class Page(HTMLParser):
+        def __init__(self,path):super().__init__();self.path=path
+        def handle_starttag(self,tag,attrs):
+            values=dict(attrs)
+            key='src' if tag in ('script','iframe','img') else 'href' if tag=='link' else None
+            if key and values.get(key):require(self.path,values[key])
+    for path,content in files.items():
+        if path.endswith('.html'):Page(path).feed(content.decode('utf-8'))
+        if path.endswith('.js'):
+            for arguments in re.findall(r'\bimportScripts\(([^)]*)\)',content.decode('utf-8')):
+                for reference in re.findall(r'''['"]([^'"]+)['"]''',arguments):require(path,reference)
 
 
 def package(output):
@@ -43,6 +68,7 @@ def package(output):
         required += content.get('js', []) + content.get('css', [])
     if any(name not in files for name in required):
         raise ValueError('Falta un archivo referenciado por la extensión.')
+    validate_files(files)
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name, data in sorted(files.items()):

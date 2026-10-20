@@ -1,4 +1,4 @@
-importScripts('agenda_core.js','agenda_worker.js','panel_worker.js');
+importScripts('agenda_core.js','agenda_worker.js','panel_worker.js','patient_context.js');
 const LOCAL = 'http://127.0.0.1:8765/api/sessions';
 const SOURCES = ['exalab', 'eloisa', 'rayen'];
 
@@ -91,7 +91,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async()=>{try{await opening;sendResponse({ok:true});}catch(_){sendResponse({ok:false,error:'No se pudo abrir Nexo.'});}})();
     return true;
   }
-  if(['nexo.library.list','nexo.library.read','nexo.panel.tab','nexo.worker.health'].includes(message?.type)){
+  if(message?.type==='nexo.patient.context'){
+    if(!ownPanel(sender)||Object.keys(message).length!==1)return false;
+    (async()=>{try{sendResponse({ok:true,result:await currentPatient()});}catch(_){sendResponse({ok:true,result:{patient:null}});}})();return true;
+  }
+  if(['nexo.library.list','nexo.library.read','nexo.library.open','nexo.panel.tab','nexo.worker.health'].includes(message?.type)){
     if(!ownPanel(sender))return false;
     (async()=>{try{sendResponse({ok:true,result:await panelRequest(message)});}catch(_){sendResponse({ok:false,error:'Abre Nexo en este Mac o conecta tu carpeta Pacientes de Drive.'});}})();
     return true;

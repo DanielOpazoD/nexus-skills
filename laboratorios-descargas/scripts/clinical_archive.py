@@ -158,7 +158,7 @@ class DriveVerifier:
         except Exception: raise ArchiveError('No se pudo comprobar Drive en la nube; conservar copia local.') from None
 
     def verify(self, path, relative):
-        parent=self.root_id;parts=Path(relative).parts
+        parent=self.root_id;parts=Path(relative).parts;patient_folder=None
         for i,name in enumerate(parts):
             escaped=name.replace('\\','\\\\').replace("'","\\'")
             q="'{}' in parents and name = '{}' and trashed = false".format(parent,escaped)
@@ -170,6 +170,7 @@ class DriveVerifier:
                 if not page:break
             if len(matches)!=1: return {'status':'pending','reason':'Archivo/carpeta aún no visible o nombre ambiguo en Drive.'}
             remote=matches[0];parent=remote['id']
+            if i==1 and parts[0]=='Pacientes':patient_folder=parent
             if i<len(parts)-1 and remote.get('mimeType')!='application/vnd.google-apps.folder':
                 return {'status':'pending','reason':'Ruta remota no coincide.'}
         if str(Path(path).stat().st_size)!=str(remote.get('size')):
@@ -177,7 +178,7 @@ class DriveVerifier:
         kind='sha256' if remote.get('sha256Checksum') else 'md5'
         if not remote.get(kind+'Checksum') or digest(path,kind)!=remote[kind+'Checksum']:
             return {'status':'pending','reason':'Contenido remoto pendiente o diferente.'}
-        return {'status':'confirmed','file_id':parent,'checked_at':datetime.now(ZoneInfo('Pacific/Easter')).isoformat()}
+        return {'status':'confirmed','file_id':parent,'patient_folder_id':patient_folder,'checked_at':datetime.now(ZoneInfo('Pacific/Easter')).isoformat()}
 
 class PatientArchive:
     def __init__(self, output, root=DEFAULT_ROOT, verifier=None):
@@ -192,6 +193,13 @@ class PatientArchive:
         # Nunca fabricar un sustituto local cuando el volumen de Drive falta.
         if not self.root.is_dir():raise ArchiveError('Carpeta de Drive no disponible; archivos conservados localmente.')
         return self.root.resolve()
+
+    def remember_link(self,folder,rut,name,remote):
+        ident=remote.get('patient_folder_id')
+        if remote.get('status')!='confirmed' or not isinstance(ident,str) or not re.fullmatch(r'[A-Za-z0-9_-]{10,200}',ident):return
+        target=folder/CONTROL_FOLDER/'Carpeta Drive.json'
+        if target.is_symlink():raise ArchiveError('Enlace de expediente modificado.')
+        atomic_json(target,dict(version=1,rut=canonical_rut(rut),name=clean_name(name),folderId=ident))
 
     def _folder_identity(self, folder):
         identities=set()
@@ -247,7 +255,7 @@ class PatientArchive:
                 name=next((r.get('patient_name') for r in rows if r.get('patient_name') and r['patient_name']!='Nombre no disponible'),None)
                 # No crear expediente vacío si no se obtuvo documento verificable.
                 if not any(r.get('files') or r.get('originals') or r.get('completed_folios') for r in rows):continue
-                folder=self.folder(rut,name);sources=[];publication_slots={}
+                folder=self.folder(rut,name);sources=[];publication_slots={};verified_hashes=set()
                 organization=organize_patient_folder(folder,apply=True)
                 result['pending'].extend(organization['pending'])
                 for row in rows:
@@ -298,10 +306,12 @@ class PatientArchive:
                     if joined.get('rut')==rut:
                         for item in joined.get('file_manifest',[]):sources.append((Path(item['path']),folder/READING_FOLDER/Path(item['path']).name,item['sha256']))
                 def record_copy(copied,checksum):
+                    if (folder/'Fuentes primarias') in Path(copied).parents:verified_hashes.add(checksum)
                     entry={'path':str(copied),'sha256':checksum,'copy':'verified','sync':'pending'}
                     try:
                         sync=self.verifier.verify(copied,copied.relative_to(self._root()))
                         entry['sync']=sync['status'];entry['remote']=sync
+                        self.remember_link(folder,rut,name,sync)
                     except Exception:entry['sync_reason']='Verificación de subida a Drive pendiente.'
                     result['files'].append(entry)
 
@@ -317,6 +327,8 @@ class PatientArchive:
                             result['pending'].extend(pending);record_copy(copied,checksum)
                         else:record_copy(*copy_version(original,target,sha))
                     except (ArchiveError,OSError,ValueError) as error:result['pending'].append(str(error))
+                from clinical_publication import note_evidence
+                note_evidence(folder,verified_hashes)
                 # Estado humano; no contiene sesiones ni rutas técnicas de reanudación.
                 state='Paciente: '+clean_name(name)+'\nRUT: '+rut+'\nFecha: '+datetime.now(ZoneInfo('Pacific/Easter')).strftime('%d-%m-%Y')+'\n'
                 state+='\n'.join(r['source']+': '+r['status']+(' — '+r['notice'] if r.get('notice') else '') for r in rows)
@@ -365,6 +377,7 @@ class PatientArchive:
                     try:
                         remote=self.verifier.verify(copied,copied.relative_to(self._root()))
                         entry.update(sync=remote['status'],remote=remote)
+                        self.remember_link(folder,artifact['rut'],artifact['name'],remote)
                     except Exception:entry['sync_reason']='Verificación de subida a Drive pendiente.'
                     result['files'].append(entry)
             except (ArchiveError,OSError,ValueError,KeyError) as error:result['pending'].append(str(error))

@@ -1,4 +1,4 @@
-# Panel de Eloísa · Nexo 3.4.0
+# Panel de Eloísa · Nexo 3.5.0
 
 El círculo **N** azul/violeta aparece en Eloísa Ambulatorio, dentro de `/main`. Abre el panel lateral nativo de Chrome junto a la ficha; Chrome permite ajustar su ancho y cerrarlo. El botón de Nexo en la barra de Chrome abre el mismo panel. Requiere Chrome 116 o posterior. **↗** abre el espacio actual en una pestaña completa.
 
@@ -8,6 +8,10 @@ Dos espacios, sin modificar la ficha:
 
 - **Solicitar:** formulario habitual, agenda, períodos y contenidos propios por fuente, envío a Drive o copia para Codex. Seleccionar pacientes no inicia descargas.
 - **Resúmenes:** buscar por nombre o RUT, elegir paciente, leer y pulsar **Copiar resumen**. Muestra fecha del archivo y referencia cuando existen. Nunca pega, firma ni guarda una evolución en Eloísa.
+
+**Usar ficha abierta** aparece solo cuando la pestaña activa de Chrome es Eloísa y su componente de datos de paciente permite comprobar nombre/RUT contra un expediente de la biblioteca. Lee exclusivamente `.patient-name-div` y las filas RUT/RUN de `.info-titles-paciente-by-rut` / `.info-pacient-by-rut`, revisadas en el paquete público `main.0afb86a1.chunk.js` el 20-10-2026. No busca RUT en toda la página, no toma la identidad de `userSession` y no consulta otra pestaña. Ambigüedad, encabezado oculto o cambio del componente mantienen la búsqueda manual. Al copiar una selección procedente de la ficha se vuelve a comprobar esa identidad; un cambio bloquea la copia. Función probada con datos ficticios; falta contraste en una ficha real autorizada.
+
+**Abrir expediente** abre `Lectura y entregas` localmente cuando el lanzador ofrece esa capacidad. Revalida la carpeta y exige un permiso efímero del proceso; nunca recibe una ruta libre del navegador. En el Air se ofrece el enlace web cuando `Control y trazabilidad/Carpeta Drive.json` contiene un ID de carpeta obtenido al confirmar sus ancestros y un archivo remoto, con nombre/RUT coincidentes. Sin enlace confirmado, el acceso web permanece oculto. No abre enlaces arbitrarios ni modifica archivos.
 
 ## Biblioteca compartida
 
@@ -24,6 +28,8 @@ El lector admite únicamente TXT de antecedentes conocidos en `Lectura y entrega
 La identidad del expediente debe constar en `Control y trazabilidad/Identidad del paciente.txt`, o en encabezados explícitos de estados/cierres históricos coherentes. El nombre de la carpeta debe coincidir. Cada resumen debe repetir el nombre y RUT en su encabezado. Se admite el formato histórico con nombre completo en primera línea y RUT en segunda; nunca un RUT incidental en el cuerpo. Los homónimos conservan su RUT; carpetas duplicadas con el mismo RUT o identidades contradictorias quedan fuera hasta su revisión.
 
 Si existe `Control y trazabilidad/Entregas vigentes.json`, seleccionar exclusivamente el archivo y hash de la entrega basal vigente. `freshness=stale|modified` permite leer con aviso, pero deshabilita la copia. Un archivo que no coincide con su hash no se ofrece. Sin índice, se muestran los TXT históricos identificados; si hay varias versiones, el usuario debe elegir una. Su presencia no certifica actualización clínica.
+
+Las entregas nuevas conservan las versiones de fuentes y huellas de originales conocidos al registrarse. Un pedido posterior con documentos distintos —también adjuntos— deja el resumen previo pendiente de revisión; copiar de nuevo bytes idénticos no lo invalida. Rearchivar una entrega antigua conserva su vínculo y vigencia anteriores: no la actualiza por sí solo. La detección se aplica a documentación verificada por Nexo, no a cualquier archivo añadido manualmente a Drive.
 
 Antes de cada copia, releer índice, archivo, identidad y hash. Si cambiaron, pedir actualizar la lista; no copiar texto previo. Una respuesta tardía no debe reponer otro paciente. Cambiar de espacio, pestaña activa, paciente u ocultar la vista limpia el texto previo. El historial y los originales permanecen en Drive.
 

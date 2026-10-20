@@ -1,6 +1,7 @@
 """Vista vigente por producto, sin deducir versiones por nombres de archivos."""
 import fcntl
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -52,6 +53,19 @@ def publish(source, folder, sha256, slot, job, *, revision=None):
         copied, checksum = copy_version(source, target, sha256)
         entry = dict(path=str(copied.relative_to(folder)), sha256=checksum, rank=rank,
                      job=job['id'], revision=revision, freshness='current')
+        if slot.startswith('delivery-'):
+            prior_record=next((item for item in ([current] if current else [])+product['history']
+                               if item.get('job')==job['id'] and item.get('revision')==revision and item.get('sha256')==checksum),None)
+            entry['source_heads']=dict(prior_record.get('source_heads',{})) if prior_record else {
+                key:value['current']['sha256'] for key,value in data['products'].items()
+                if key.startswith('source-') and value.get('current')}
+            if prior_record:entry['freshness']=prior_record.get('freshness','current')
+            entry['evidence_heads']=list(prior_record.get('evidence_heads',[])) if prior_record else list(data.get('evidence',[]))
+        elif slot.startswith('source-') and not historical and (not current or current['sha256']!=checksum):
+            for key,value in data['products'].items():
+                delivery=value.get('current')
+                if key.startswith('delivery-') and delivery and delivery.get('source_heads',{}).get(slot)!=checksum:
+                    delivery['freshness']='stale'
         if historical:
             if entry not in product['history']:product['history'].append(entry)
         elif current != entry:
@@ -105,3 +119,27 @@ def mark_freshness(folder,slot,job_id,status):
         current=data.get('products',{}).get(slot,{}).get('current')
         if current and current.get('job')==job_id and current.get('freshness')!=status:
             current['freshness']=status;atomic_json(ledger,data)
+
+
+def note_evidence(folder,hashes):
+    """Originales nuevos, incluidos adjuntos: no se confunden con metadatos/control."""
+    if not hashes:return
+    folder=Path(folder);ledger=safe_path(folder,CONTROL_FOLDER+'/Entregas vigentes.json')
+    lock=safe_path(folder,CONTROL_FOLDER+'/.entregas.lock')
+    with lock.open('a+b') as owner:
+        fcntl.flock(owner.fileno(),fcntl.LOCK_EX)
+        try:data=json.loads(ledger.read_text())
+        except FileNotFoundError:data={'version':1,'products':{}}
+        if data.get('version')!=1 or not isinstance(data.get('products'),dict) or not isinstance(data.get('evidence',[]),list):raise ArchiveError('Índice de evidencia incompatible.')
+        values=data.get('evidence',[])
+        if any(not isinstance(value,str) or not re.fullmatch(r'[a-f0-9]{64}',value) for value in values):raise ArchiveError('Huellas de evidencia incompatibles.')
+        known=set(values);new=set(hashes)-known
+        if not new:return
+        data['evidence']=sorted(known|new)
+        for key,value in data['products'].items():
+            current=value.get('current')
+            if key.startswith('delivery-') and current:
+                heads=current.get('evidence_heads',[])
+                if not isinstance(heads,list) or any(not isinstance(value,str) for value in heads):raise ArchiveError('Vínculo de evidencia incompatible.')
+                if new-set(heads):current['freshness']='stale'
+        atomic_json(ledger,data)

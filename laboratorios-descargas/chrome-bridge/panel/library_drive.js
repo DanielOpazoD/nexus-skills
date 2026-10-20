@@ -55,6 +55,8 @@
             current=manifest.products?.['delivery-antecedentes']?.current||null;
           }catch(error){if(error.name!=='NotFoundError')throw error;}
           const documents=[];
+          let folderUrl=null;
+          if(control){try{folderUrl=C.folderUrl(JSON.parse((await file(control,'Carpeta Drive.json',4096)).text),patient);}catch(error){if(error.name!=='NotFoundError')issues++;}}
           try{
             const reading=await folder(handle,R.readingFolder);
             for await(const [name,document] of reading.entries()){
@@ -73,7 +75,7 @@
             }
           }catch(error){if(error.name!=='NotFoundError')throw error;}
           if(current && !documents.length)issues++;
-          patients.push({id:await C.checksum(new TextEncoder().encode(patient.rut+'\0'+directoryName)),...patient,documents});
+          patients.push({id:await C.checksum(new TextEncoder().encode(patient.rut+'\0'+directoryName)),...patient,documents,folderUrl});
         }catch(_){issues++;}
       }
       const counts=new Map();for(const patient of patients)counts.set(patient.rut,(counts.get(patient.rut)||0)+1);
