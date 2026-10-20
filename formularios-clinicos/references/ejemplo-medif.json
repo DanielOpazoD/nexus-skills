@@ -1,0 +1,142 @@
+{
+  "catalogVersion": "1.1.0",
+  "formId": "medif",
+  "templateRevision": "ejemplo-basado-en-hhr-2026-10-16",
+  "exampleOnly": true,
+  "localVariables": [
+    {
+      "id": "medif_fecha_declaracion",
+      "label": "Fecha de declaración",
+      "type": "date"
+    },
+    {
+      "id": "medif_firma_medico",
+      "label": "Firma del médico",
+      "type": "string"
+    }
+  ],
+  "bindings": [
+    {
+      "fieldId": "p1_nombre_pasajero",
+      "entryMode": "editable",
+      "required": false,
+      "format": "text",
+      "variable": "paciente_nombre_completo"
+    },
+    {
+      "fieldId": "p2_nombre_paciente",
+      "entryMode": "linked",
+      "required": false,
+      "format": "text",
+      "variable": "paciente_nombre_completo"
+    },
+    {
+      "fieldId": "p1_edad",
+      "entryMode": "editable",
+      "required": false,
+      "format": "text",
+      "variable": "paciente_edad_texto"
+    },
+    {
+      "fieldId": "p2_edad",
+      "entryMode": "linked",
+      "required": false,
+      "format": "text",
+      "variable": "paciente_edad_texto"
+    },
+    {
+      "fieldId": "p2_diagnostico_actual",
+      "entryMode": "editable",
+      "required": false,
+      "format": "text",
+      "variable": "diagnostico_texto"
+    },
+    {
+      "fieldId": "p2_genero",
+      "entryMode": "editable",
+      "required": false,
+      "format": "text",
+      "variable": "paciente_sexo_biologico",
+      "justification": "En este MEDIF el usuario pidió usar el sexo registrado; no generalizar a otros campos de género."
+    },
+    {
+      "fieldId": "p2_nombre_medico",
+      "entryMode": "editable",
+      "required": false,
+      "format": "text",
+      "variable": "medico_tratante_nombre"
+    },
+    {
+      "fieldId": "p1_medico_autorizado",
+      "entryMode": "linked",
+      "required": false,
+      "format": "text",
+      "variable": "medico_tratante_nombre"
+    },
+    {
+      "fieldId": "p3_medico_declaracion",
+      "entryMode": "linked",
+      "required": false,
+      "format": "text",
+      "variable": "medico_tratante_nombre"
+    },
+    {
+      "fieldId": "p2_identificacion_medico",
+      "entryMode": "editable",
+      "required": false,
+      "format": "text",
+      "variable": "medico_tratante_rut"
+    },
+    {
+      "fieldId": "p2_especialidad_medico",
+      "entryMode": "editable",
+      "required": false,
+      "format": "text",
+      "variable": "medico_tratante_especialidad"
+    },
+    {
+      "fieldId": "p3_fecha_declaracion",
+      "entryMode": "editable",
+      "required": false,
+      "format": "date_dmy",
+      "variable": "medif_fecha_declaracion"
+    },
+    {
+      "fieldId": "p1_declaracion_fecha",
+      "entryMode": "linked",
+      "required": false,
+      "format": "date_dmy",
+      "variable": "medif_fecha_declaracion"
+    },
+    {
+      "fieldId": "p2_contagiosa_fecha_tipo",
+      "entryMode": "editable",
+      "required": false,
+      "format": "date_dmy",
+      "variable": "ingreso_fecha",
+      "justification": "Excepción explícita del usuario en MEDIF: fecha de ingreso en Enfermedad y fecha de inicio; no es equivalencia clínica universal."
+    },
+    {
+      "fieldId": "p1_itinerario_1_desde",
+      "entryMode": "fixed",
+      "required": false,
+      "format": "text",
+      "constant": "Isla de Pascua"
+    },
+    {
+      "fieldId": "p1_itinerario_1_hacia",
+      "entryMode": "fixed",
+      "required": false,
+      "format": "text",
+      "constant": "Santiago"
+    },
+    {
+      "fieldId": "p3_firma_medico_texto",
+      "entryMode": "suppressed",
+      "required": false,
+      "format": "text",
+      "variable": "medif_firma_medico",
+      "kind": "signature"
+    }
+  ]
+}

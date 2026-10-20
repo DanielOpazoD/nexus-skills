@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "packetVersion": 4,
+  "content": {
+    "eloisa": [
+      {"id":"medical","label":"Evoluciones médicas","default":true},
+      {"id":"other","label":"Otros profesionales","default":false},
+      {"id":"prescriptions","label":"Recetas","default":true},
+      {"id":"referrals","label":"Interconsultas","default":true},
+      {"id":"attachments","label":"Documentos adjuntos","default":true,"since":4}
+    ],
+    "rayen": [
+      {"id":"epicrisis","label":"Epicrisis médica","default":true},
+      {"id":"record","label":"Ficha clínica completa","default":false}
+    ],
+    "mmrad": [{"id":"ct_reports","label":"Informes TAC","default":true,"since":4}]
+  },
+  "mmrad": {"imageTypes":["radiographs","ultrasounds"],"defaultImageTypes":["radiographs"],"excludeEchocardiography":true}
+}

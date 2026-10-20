@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "id": "documents",
+      "label": "Solo descargar archivos",
+      "version": 1,
+      "template_status": "not_required"
+    },
+    {
+      "id": "epicrisis",
+      "label": "Epicrisis",
+      "version": 1,
+      "template_status": "pending"
+    },
+    {
+      "id": "telemedicina-reumatologia",
+      "label": "Telemedicina · Reumatología",
+      "version": 1,
+      "template_status": "pending"
+    },
+    {
+      "id": "telemedicina-gastroenterologia",
+      "label": "Telemedicina · Gastroenterología",
+      "version": 1,
+      "template_status": "pending"
+    },
+    {
+      "id": "evolucion-ambulatoria",
+      "label": "Evolución · Eloísa ambulatoria",
+      "version": 1,
+      "template_status": "pending"
+    },
+    {
+      "id": "evolucion-hospitalizados",
+      "label": "Evolución · Hospitalizados",
+      "version": 1,
+      "template_status": "pending"
+    },
+    {
+      "id": "custom",
+      "label": "Libre",
+      "version": 1,
+      "template_status": "not_required"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Informes e imágenes MMRAD"
+  short_description: "Obtiene informes TAC y radiografías de MMRAD"
+  default_prompt: "Usa $mmrad-resultados para obtener los informes o imágenes del RUT y período indicados."

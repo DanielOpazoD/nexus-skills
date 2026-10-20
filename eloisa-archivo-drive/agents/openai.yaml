@@ -1,0 +1,6 @@
+interface:
+  display_name: "Archivo clínico por paciente en Drive"
+  short_description: "Archiva resúmenes y fuentes clínicas por paciente"
+  default_prompt: "Usa $eloisa-archivo-drive para guardar en Drive los documentos y resúmenes de este flujo clínico HHR."
+policy:
+  allow_implicit_invocation: true

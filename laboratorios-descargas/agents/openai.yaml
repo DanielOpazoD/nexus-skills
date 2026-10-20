@@ -1,0 +1,4 @@
+interface:
+  display_name: "Descargas clínicas HHR"
+  short_description: "Siete fuentes, cola y archivo por paciente"
+  default_prompt: "Usa $laboratorios-descargas para descargar los documentos de los pacientes, fuentes y período indicados."

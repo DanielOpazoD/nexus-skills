@@ -1,0 +1,4 @@
+interface:
+  display_name: "Eloísa Ambulatorio"
+  short_description: "Obtiene atenciones y PDF adjuntos de Eloísa"
+  default_prompt: "Usa $eloisa-resultados para obtener las atenciones y adjuntos seleccionados del RUT y período indicados."

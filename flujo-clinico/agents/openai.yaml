@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flujo clínico HHR"
+  short_description: "Búsqueda, reporte y archivo clínico por paciente"
+  default_prompt: "Usa $flujo-clinico para reunir las fuentes solicitadas, preparar el resumen y archivar los documentos por paciente en Drive."

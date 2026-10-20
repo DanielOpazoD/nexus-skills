@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laboratorio Exalab SSMO"
+  short_description: "Consulta y descarga informes de Exalab SSMO"
+  default_prompt: "Usa $exalab-resultados para buscar los informes del RUT y período indicados."

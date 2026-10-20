@@ -1,0 +1,9 @@
+# Nexo — 19-10-2026
+
+Nombre visible: **Nexo · Consulta clínica**. Reemplaza «Puente local de descargas clínicas» en Chrome. La carpeta de instalación conserva su ruta para que Chrome mantenga la misma extensión. Versión 3.1.0; no agrega permisos ni modifica solicitudes, fuentes o almacenamiento.
+
+Identidad: N blanca de cintas enlazadas sobre azul eléctrico/violeta; interfaz neutra con acento violeta. Original `assets/brand/nexo-original.png`; cabecera `assets/brand/nexo-128.png`. Iconos PNG separados de 16, 32, 48 y 128 píxeles en `chrome-bridge/icons/`, conforme a [Chrome](https://developer.chrome.com/docs/extensions/reference/manifest/icons). El generador copia el icono al formulario de extensión e integra sus bytes en el HTML portátil; no requiere red para mostrarlo.
+
+Creado con la herramienta integrada image_gen. Prompt: «Use case: logo-brand. Create one finished app icon for Nexo, a minimalist clinical information organizer linking patient records and two Macs. Square 1024x1024 image, premium macOS-style rounded square silhouette nearly filling canvas, transparent outside the rounded square. Deep electric blue to vivid violet gradient tile. Center a large bold crisp white abstract N formed from two interlocking rounded ribbons, simple clean geometry and strong negative space, distinguishable at 16px. Very restrained dimensional lighting. No lettering, no wordmark, no cross, no heart, no ECG, no green, no teal, no tiny details, no mockup, no multiple variants, no surrounding shadows beyond icon. Professional, memorable, striking, uncluttered.» Derivados redimensionados con sips para empaquetado; original conservado.
+
+Tras actualizar los archivos, recargar la extensión existente y el panel. La recarga quedó pendiente por decisión del usuario; no afirmar que el icono ya aparece en Chrome ni que está instalado en el Air sin verificarlo.

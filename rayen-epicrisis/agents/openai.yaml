@@ -1,0 +1,4 @@
+interface:
+  display_name: "Eloísa Hospitalizados"
+  short_description: "Epicrisis y ficha completa del registro hospitalario"
+  default_prompt: "Usa $rayen-epicrisis para obtener los contenidos hospitalarios seleccionados del paciente y período indicados. Epicrisis por API; ficha completa mediante el visor oficial cuando se solicite. Archiva sólo PDF verificados en Drive."

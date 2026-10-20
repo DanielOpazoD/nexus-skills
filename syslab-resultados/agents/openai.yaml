@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laboratorio Syslab HHR"
+  short_description: "Consulta y descarga informes de Syslab HHR"
+  default_prompt: "Usa $syslab-resultados para buscar los informes del RUT y período indicados."

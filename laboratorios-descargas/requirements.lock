@@ -1,0 +1,25 @@
+# CPython 3.12 / macOS (Apple Silicon e Intel). Versiones verificadas 19-10-2026.
+# Wheels oficiales, sin compilación ni dependencias flotantes. PyYAML verifica las skills.
+--only-binary=:all:
+--require-hashes
+
+pypdf==6.10.0 \
+    --hash=sha256:90005e959e1596c6e6c84c8b0ad383285b3e17011751cedd17f2ce8fcdfc86de
+reportlab==4.4.9 \
+    --hash=sha256:68e2d103ae8041a37714e8896ec9b79a1c1e911d68c3bd2ea17546568cf17bfd
+Pillow==12.3.0 \
+    --hash=sha256:ba09209fbe443b4acccebe845d8a138b89a8f4fbaeedd44953490b5315d5e965 \
+    --hash=sha256:ffd0c5368496f41b0944be820fcb7a838aa6e623d250b01acf2643939c3f99d7
+numpy==2.3.5 \
+    --hash=sha256:3101e5177d114a593d79dd79658650fe28b5a0d8abeb8ce6f437c0e6df5be1a4 \
+    --hash=sha256:612a95a17655e213502f60cfb9bf9408efdc9eb1d5f50535cc6eb365d11b42b5 \
+    --hash=sha256:74ae7b798248fe62021dbf3c914245ad45d1a6b0cb4a29ecb4b31d0bfbc4cc3e \
+    --hash=sha256:ee3888d9ff7c14604052b2ca5535a30216aa0a58e948cdd3eeb8d3415f638769
+pydicom==3.0.2 \
+    --hash=sha256:abf971a5440f84dbaf42c4b6758e30e62480902584f8b270b9a5d146e278a07b
+charset-normalizer==3.5.2 \
+    --hash=sha256:b6b751274acb69d77b3323d6b7dbaa3c7fdfc1eb829b7eb61d262f32e1af9685 \
+    --hash=sha256:ed2a239c0ea213acc1908150a3037257083c7c083128f1a4cec2ec4b97dca491
+PyYAML==6.0.3 \
+    --hash=sha256:7f047e29dcae44602496db43be01ad42fc6f1cc0d8cd6c83d342306c32270196 \
+    --hash=sha256:fc09d0aa354569bc501d4e787133afc08552722d3ab34836a80547331bb5d4a0

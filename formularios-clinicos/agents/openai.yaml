@@ -1,0 +1,4 @@
+interface:
+  display_name: "Formularios clínicos compartidos"
+  short_description: "Variables comunes para formularios clínicos"
+  default_prompt: "Usa $formularios-clinicos para preparar este formulario con las variables comunes e integrarlo al censo o al ingreso manual."

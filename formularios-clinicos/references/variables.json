@@ -1,0 +1,301 @@
+{
+  "version": "1.1.0",
+  "emptyValue": null,
+  "dateFormat": "YYYY-MM-DD",
+  "timeFormat": "HH:mm",
+  "instantFormat": "ISO-8601 with offset",
+  "variables": [
+    {
+      "id": "paciente_documento_tipo",
+      "label": "Tipo de documento",
+      "type": "enum",
+      "hhrPath": "patient.documentType",
+      "notes": "No asumir RUT cuando el tipo es desconocido.",
+      "options": ["RUT", "Pasaporte"]
+    },
+    {
+      "id": "paciente_documento_numero",
+      "label": "Número de documento",
+      "type": "string",
+      "hhrPath": "patient.rut",
+      "notes": "Número según su tipo; conservar letras y ceros iniciales."
+    },
+    {
+      "id": "paciente_rut",
+      "label": "RUT del paciente",
+      "type": "string",
+      "hhrPath": "patient.rut",
+      "notes": "Sólo RUT verificable del propio paciente. No usar documentos provisionales, pasaportes ni neonatalMaternalRut."
+    },
+    {
+      "id": "paciente_identidad_estado",
+      "label": "Estado de identificación",
+      "type": "enum",
+      "hhrPath": "patient.identityStatus",
+      "notes": "Ausente significa desconocido, no identidad oficial.",
+      "options": ["provisional", "official"]
+    },
+    {
+      "id": "paciente_nombre_completo",
+      "label": "Nombre y apellidos",
+      "type": "string",
+      "hhrPath": "patient.patientName",
+      "notes": "Conservar la identidad registrada; no dividir por espacios para inventar apellidos."
+    },
+    {
+      "id": "paciente_nombres",
+      "label": "Nombres",
+      "type": "string",
+      "hhrPath": "patient.firstName",
+      "notes": "Si falta, solicitarlo o dejar vacío; no extraer por posición del nombre completo."
+    },
+    {
+      "id": "paciente_apellido_paterno",
+      "label": "Primer apellido",
+      "type": "string",
+      "hhrPath": "patient.lastName",
+      "notes": "Usar el primer apellido estructurado; no inferir parentesco."
+    },
+    {
+      "id": "paciente_apellido_materno",
+      "label": "Segundo apellido",
+      "type": "string",
+      "hhrPath": "patient.secondLastName",
+      "notes": "Opcional; no sustituir por el primer apellido."
+    },
+    {
+      "id": "paciente_fecha_nacimiento",
+      "label": "Fecha de nacimiento",
+      "type": "date",
+      "hhrPath": "patient.birthDate",
+      "notes": "Fecha calendario; no convertir con zona horaria."
+    },
+    {
+      "id": "paciente_edad_texto",
+      "label": "Edad con unidad",
+      "type": "string",
+      "hhrPath": "patient.age",
+      "notes": "Conservar años/meses/días y fecha de referencia. Calcular sólo desde nacimiento verificado y fecha explícita."
+    },
+    {
+      "id": "paciente_sexo_biologico",
+      "label": "Sexo biológico",
+      "type": "enum",
+      "hhrPath": "patient.biologicalSex",
+      "notes": "No equivale a identidad de género ni se deduce del nombre.",
+      "options": ["Masculino", "Femenino", "Indeterminado"]
+    },
+    {
+      "id": "ingreso_fecha",
+      "label": "Fecha de ingreso",
+      "type": "date",
+      "hhrPath": "patient.admissionDate",
+      "notes": "Del episodio seleccionado; no equivale a inicio de enfermedad ni fecha del censo."
+    },
+    {
+      "id": "ingreso_hora",
+      "label": "Hora de ingreso",
+      "type": "time",
+      "hhrPath": "patient.admissionTime",
+      "notes": "Hora local del hospital; mantener vacía si no está registrada."
+    },
+    {
+      "id": "ingreso_origen",
+      "label": "Origen del ingreso",
+      "type": "enum",
+      "hhrPath": "patient.admissionOrigin",
+      "notes": "No confundir con residencia o procedencia del viaje.",
+      "options": ["CAE", "APS", "Urgencias", "Pabellón", "Otro"]
+    },
+    {
+      "id": "episodio_id",
+      "label": "Identificador del episodio",
+      "type": "string",
+      "hhrPath": "patient.clinicalEpisodeId",
+      "notes": "Contexto interno, no dato para imprimir por defecto; no generar un episodio desde un formulario."
+    },
+    {
+      "id": "cama_id",
+      "label": "Identificador de cama",
+      "type": "string",
+      "hhrPath": "context.bedId",
+      "notes": "Ubicación, no identidad del paciente; puede cambiar o reutilizarse."
+    },
+    {
+      "id": "cama_nombre",
+      "label": "Nombre de cama",
+      "type": "string",
+      "hhrPath": "patient.bedName",
+      "notes": "Puede resolverse con el catálogo BEDS; no usar como identificador del episodio."
+    },
+    {
+      "id": "cama_ubicacion",
+      "label": "Paciente en cama o cuna clínica",
+      "type": "enum",
+      "hhrPath": "context.location",
+      "notes": "La cuna clínica es otra persona; no copiar datos maternos.",
+      "options": ["bed", "clinicalCrib"]
+    },
+    {
+      "id": "censo_fecha",
+      "label": "Fecha del censo de origen",
+      "type": "date",
+      "hhrPath": "record.date",
+      "notes": "Trazabilidad del dato, no fecha de ingreso ni emisión."
+    },
+    {
+      "id": "censo_actualizado_en",
+      "label": "Última actualización del censo",
+      "type": "instant",
+      "hhrPath": "record.lastUpdated",
+      "notes": "Normalizar Timestamp a ISO con zona; no usar como fecha de ingreso."
+    },
+    {
+      "id": "diagnostico_texto",
+      "label": "Diagnóstico clínico registrado",
+      "type": "string",
+      "hhrPath": "patient.pathology",
+      "notes": "Proponer como borrador revisable; no resumirlo cambiando su significado."
+    },
+    {
+      "id": "diagnostico_cie10_codigo",
+      "label": "Código CIE-10",
+      "type": "string",
+      "hhrPath": "patient.cie10Code",
+      "notes": "Conservar código registrado; no inventar código desde texto libre."
+    },
+    {
+      "id": "diagnostico_cie10_descripcion",
+      "label": "Descripción CIE-10",
+      "type": "string",
+      "hhrPath": "patient.cie10Description",
+      "notes": "Etiqueta del código seleccionado, distinta del diagnóstico libre."
+    },
+    {
+      "id": "diagnostico_observaciones",
+      "label": "Observaciones diagnósticas",
+      "type": "string",
+      "hhrPath": "patient.diagnosisComments",
+      "notes": "Texto separado; no anexarlo a todos los formularios automáticamente."
+    },
+    {
+      "id": "paciente_especialidad",
+      "label": "Especialidad del paciente",
+      "type": "string",
+      "hhrPath": "patient.specialty",
+      "notes": "No equivale a la especialidad profesional del médico que firma."
+    },
+    {
+      "id": "medico_tratante_id",
+      "label": "Identificador del médico tratante",
+      "type": "string",
+      "hhrPath": "patient.treatingPhysicianId",
+      "notes": "Contexto interno; no es su RUT ni número de registro."
+    },
+    {
+      "id": "medico_tratante_nombre",
+      "label": "Nombre del médico tratante",
+      "type": "string",
+      "hhrPath": "patient.treatingPhysicianName",
+      "notes": "Propuesta del censo; confirmar que es el médico responsable del documento."
+    },
+    {
+      "id": "medico_tratante_rut",
+      "label": "RUT del médico tratante",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Ingreso manual o perfil profesional confirmado; nunca derivar del ID interno."
+    },
+    {
+      "id": "medico_tratante_especialidad",
+      "label": "Especialidad del médico tratante",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Perfil profesional confirmado; no copiar patient.specialty."
+    },
+    {
+      "id": "medico_tratante_telefono",
+      "label": "Teléfono del médico tratante",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Ingreso manual o perfil profesional confirmado."
+    },
+    {
+      "id": "medico_tratante_email",
+      "label": "Correo del médico tratante",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Ingreso manual o perfil profesional confirmado."
+    },
+    {
+      "id": "formulario_fecha_emision",
+      "label": "Fecha de emisión del documento",
+      "type": "date",
+      "hhrPath": null,
+      "notes": "Fecha elegida para el documento; no igualarla automáticamente al ingreso."
+    },
+    {
+      "id": "establecimiento_nombre",
+      "label": "Nombre del establecimiento",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Configuración explícita del centro o del formulario; no un valor universal."
+    },
+    {
+      "id": "paciente_telefono",
+      "label": "Teléfono del paciente",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Contacto confirmado; no equivale al teléfono del médico."
+    },
+    {
+      "id": "paciente_domicilio",
+      "label": "Domicilio del paciente",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Domicilio confirmado, no ubicación de cama."
+    },
+    {
+      "id": "paciente_nacionalidad",
+      "label": "Nacionalidad",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "No deducir desde el documento ni condición de permanencia."
+    },
+    {
+      "id": "paciente_ocupacion",
+      "label": "Ocupación",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Ingreso manual; no confundir con cama ocupada."
+    },
+    {
+      "id": "paciente_ficha_numero",
+      "label": "Número de ficha",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Número administrativo verificado; no usar ID de episodio ni de cama."
+    },
+    {
+      "id": "paciente_fonasa_tramo",
+      "label": "Tramo FONASA",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Tramo A/B/C/D confirmado; insurance=Fonasa no informa el tramo."
+    },
+    {
+      "id": "paciente_peso_kg",
+      "label": "Peso medido (kg)",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Valor explícito con unidad kg; no inferir de edad ni usar como peso ideal."
+    },
+    {
+      "id": "paciente_talla_cm",
+      "label": "Talla (cm)",
+      "type": "string",
+      "hhrPath": null,
+      "notes": "Valor explícito con unidad cm; no calcular desde peso ideal."
+    }
+  ]
+}

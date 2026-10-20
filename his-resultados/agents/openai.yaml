@@ -1,0 +1,4 @@
+interface:
+  display_name: "Atenciones HIS Hanga Roa"
+  short_description: "Busca y exporta fichas del HIS Hanga Roa"
+  default_prompt: "Usa $his-resultados para buscar y exportar las fichas del RUT y período indicados."

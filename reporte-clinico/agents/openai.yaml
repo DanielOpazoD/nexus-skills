@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reporte clínico con fuentes"
+  short_description: "Resúmenes clínicos trazables y comparables"
+  default_prompt: "Usa $reporte-clinico para resumir estos documentos verificados y señalar fuentes, discrepancias y pendientes."

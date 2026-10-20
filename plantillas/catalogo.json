@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "formatos": [
+    {
+      "id": "epicrisis",
+      "nombre": "Epicrisis",
+      "estado": "pendiente",
+      "directorio": "epicrisis",
+      "archivo": null,
+      "version": null,
+      "fecha_recepcion": null
+    },
+    {
+      "id": "telemedicina-reumatologia",
+      "nombre": "Telemedicina · Reumatología",
+      "estado": "pendiente",
+      "directorio": "telemedicina-reumatologia",
+      "archivo": null,
+      "version": null,
+      "fecha_recepcion": null
+    },
+    {
+      "id": "telemedicina-gastroenterologia",
+      "nombre": "Telemedicina · Gastroenterología",
+      "estado": "pendiente",
+      "directorio": "telemedicina-gastroenterologia",
+      "archivo": null,
+      "version": null,
+      "fecha_recepcion": null
+    },
+    {
+      "id": "evolucion-ambulatoria",
+      "nombre": "Evolución · Eloísa ambulatoria",
+      "estado": "pendiente",
+      "directorio": "evolucion-ambulatoria",
+      "archivo": null,
+      "version": null,
+      "fecha_recepcion": null
+    },
+    {
+      "id": "evolucion-hospitalizados",
+      "nombre": "Evolución · Hospitalizados",
+      "estado": "pendiente",
+      "directorio": "evolucion-hospitalizados",
+      "archivo": null,
+      "version": null,
+      "fecha_recepcion": null
+    }
+  ]
+}

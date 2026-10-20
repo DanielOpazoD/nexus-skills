@@ -1,0 +1,263 @@
+<div id="labs-request-six-sources">
+  <form data-field="form" novalidate>
+    <div class="viz-controls">
+      <fieldset style="border:0;padding:0;margin:0">
+        <legend class="form-label">Fuentes</legend><p class="text-small">Biopsias · módulo pendiente</p><strong>Laboratorios</strong>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label class="form-check"><input class="form-check-input" type="checkbox" data-field="syslab" checked><span class="form-check-label">Syslab</span></label><button type="button" class="btn" data-field="toggle-syslab" aria-expanded="false" aria-controls="widget-period-syslab"><span data-field="label-syslab">30 días</span> <span aria-hidden="true">⌄</span></button></div><div id="widget-period-syslab" data-field="wrap-syslab" hidden style="margin:8px 0 15px"><label class="form-label" for="widget-slider-syslab">Período Syslab</label><input id="widget-slider-syslab" type="range" min="0" max="7" step="1" value="0" data-field="period-syslab" aria-label="Período Syslab" style="width:100%;accent-color:#17685b"><button type="button" class="btn" data-field="reset-syslab" hidden>Restablecer</button></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label class="form-check"><input class="form-check-input" type="checkbox" data-field="exalab" checked><span class="form-check-label">Exalab</span></label><button type="button" class="btn" data-field="toggle-exalab" aria-expanded="false" aria-controls="widget-period-exalab"><span data-field="label-exalab">30 días</span> <span aria-hidden="true">⌄</span></button></div><div id="widget-period-exalab" data-field="wrap-exalab" hidden style="margin:8px 0 15px"><label class="form-label" for="widget-slider-exalab">Período Exalab</label><input id="widget-slider-exalab" type="range" min="0" max="7" step="1" value="0" data-field="period-exalab" aria-label="Período Exalab" style="width:100%;accent-color:#17685b"><button type="button" class="btn" data-field="reset-exalab" hidden>Restablecer</button></div>
+        <strong style="display:block;margin-top:12px">Atenciones y hospitalizaciones</strong><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label class="form-check"><input class="form-check-input" type="checkbox" data-field="eloisa"><span class="form-check-label">Eloísa Ambulatorio</span></label><button type="button" class="btn" data-field="toggle-eloisa" aria-expanded="false" aria-controls="widget-period-eloisa"><span data-field="label-eloisa">30 días</span> <span aria-hidden="true">⌄</span></button></div><div id="widget-period-eloisa" data-field="wrap-eloisa" hidden style="margin:8px 0 15px"><label class="form-label" for="widget-slider-eloisa">Período Eloísa</label><input id="widget-slider-eloisa" type="range" min="0" max="7" step="1" value="0" data-field="period-eloisa" aria-label="Período Eloísa" style="width:100%;accent-color:#17685b"><button type="button" class="btn" data-field="reset-eloisa" hidden>Restablecer</button></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label class="form-check"><input class="form-check-input" type="checkbox" data-field="his"><span class="form-check-label">HIS</span></label><button type="button" class="btn" data-field="toggle-his" aria-expanded="false" aria-controls="widget-period-his"><span data-field="label-his">30 días</span> <span aria-hidden="true">⌄</span></button></div><div id="widget-period-his" data-field="wrap-his" hidden style="margin:8px 0 15px"><label class="form-label" for="widget-slider-his">Período HIS</label><input id="widget-slider-his" type="range" min="0" max="7" step="1" value="0" data-field="period-his" aria-label="Período HIS" style="width:100%;accent-color:#17685b"><button type="button" class="btn" data-field="reset-his" hidden>Restablecer</button></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label class="form-check"><input class="form-check-input" type="checkbox" data-field="rayen"><span class="form-check-label">Eloísa Hospitalizados</span></label><button type="button" class="btn" data-field="toggle-rayen" aria-expanded="false" aria-controls="widget-period-rayen"><span data-field="label-rayen">30 días</span> <span aria-hidden="true">⌄</span></button></div><div id="widget-period-rayen" data-field="wrap-rayen" hidden style="margin:8px 0 15px"><label class="form-label" for="widget-slider-rayen">Período Eloísa Hospitalizados</label><input id="widget-slider-rayen" type="range" min="0" max="7" step="1" value="0" data-field="period-rayen" aria-label="Período Eloísa Hospitalizados" style="width:100%;accent-color:#17685b"><button type="button" class="btn" data-field="reset-rayen" hidden>Restablecer</button></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label class="form-check"><input class="form-check-input" type="checkbox" data-field="email"><span class="form-check-label">Correo institucional</span></label><button type="button" class="btn" data-field="toggle-email" aria-expanded="false" aria-controls="widget-period-email"><span data-field="label-email">30 días</span> <span aria-hidden="true">⌄</span></button></div><div id="widget-period-email" data-field="wrap-email" hidden style="margin:8px 0 15px"><label class="form-label" for="widget-slider-email">Período Correo institucional</label><input id="widget-slider-email" type="range" min="0" max="7" step="1" value="0" data-field="period-email" aria-label="Período Correo institucional" style="width:100%;accent-color:#17685b"><button type="button" class="btn" data-field="reset-email" hidden>Restablecer</button></div>
+        <strong style="display:block;margin-top:12px">Imagenología</strong>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><label class="form-check"><input class="form-check-input" type="checkbox" data-field="mmrad"><span class="form-check-label">MMRAD</span></label><button type="button" class="btn" data-field="toggle-mmrad" aria-expanded="false" aria-controls="widget-period-mmrad"><span data-field="label-mmrad">30 días</span> <span aria-hidden="true">⌄</span></button></div><div id="widget-period-mmrad" data-field="wrap-mmrad" hidden style="margin:8px 0 15px"><label class="form-label" for="widget-slider-mmrad">Período MMRAD</label><input id="widget-slider-mmrad" type="range" min="0" max="7" step="1" value="0" data-field="period-mmrad" aria-label="Período MMRAD" style="width:100%;accent-color:#17685b"><button type="button" class="btn" data-field="reset-mmrad" hidden>Restablecer</button></div>
+      </fieldset>
+      <div><label class="form-label" for="labs-period-slider">Período general</label><button type="button" class="btn" data-field="apply-all">Aplicar a todas</button>
+        <output data-field="period-label" for="labs-period-slider">Últimos 30 días</output>
+        <input id="labs-period-slider" type="range" min="0" max="6" step="1" value="0" data-field="period-slider" aria-valuetext="Últimos 30 días" style="width:100%;accent-color:#126d61">
+        <div style="display:flex;justify-content:space-between;font-size:.8rem"><span>30 d</span><span>3 m</span><span>6 m</span><span>1 a</span><span>2 a</span><span>5 a</span><span>10 a</span></div>
+        <label class="form-check"><input type="checkbox" data-field="latest"><span>Último registro disponible</span></label>
+        <input type="hidden" data-field="period" value="30d">
+      </div>
+    </div>
+<details data-field="eloisa-content-wrap" hidden><summary>Contenido ambulatorio</summary><label style="display:block;margin:8px 0"><input type="checkbox" data-content="eloisa" value="medical" checked> Evoluciones médicas</label><label style="display:block;margin:8px 0"><input type="checkbox" data-content="eloisa" value="other"> Otros profesionales</label><label style="display:block;margin:8px 0"><input type="checkbox" data-content="eloisa" value="prescriptions" checked> Recetas</label><label style="display:block;margin:8px 0"><input type="checkbox" data-content="eloisa" value="referrals" checked> Interconsultas</label><label style="display:block;margin:8px 0"><input type="checkbox" data-content="eloisa" value="attachments" checked> Documentos adjuntos</label></details><details data-field="rayen-content-wrap" hidden><summary>Contenido hospitalizados</summary><label style="display:block;margin:8px 0"><input type="checkbox" data-content="rayen" value="epicrisis" checked> Epicrisis médica</label><label style="display:block;margin:8px 0"><input type="checkbox" data-content="rayen" value="record"> Ficha clínica completa</label></details><div data-field="scope-wrap" hidden><input type="hidden" data-field="eloisa-scope" value="medicos"></div>    <fieldset data-field="mmrad-mode-wrap" hidden style="border:1px solid #cadbd2;border-radius:10px;padding:16px;margin:16px 0"><legend>Descargas de MMRAD</legend>
+      <label class="form-check"><input type="checkbox" data-field="mmrad-reports" checked><span>Informes TAC</span></label>
+      <label class="form-check"><input type="checkbox" data-field="mmrad-radiographs" checked><span>Radiografías · imágenes</span></label>
+
+      <input type="hidden" data-field="mmrad-mode" value="both">
+      <p class="text-small" data-field="mmrad-note">Ecocardiograma: informe en adjuntos de Eloísa. Radiografías: imágenes sin exigir informe.</p>
+    </fieldset>
+    <label class="form-label" for="labs-request-ruts">RUT de los pacientes</label>
+    <textarea id="labs-request-ruts" class="form-control" data-field="ruts" rows="2" placeholder="12345678-5" spellcheck="false" autocomplete="off" aria-describedby="labs-request-hint" aria-errormessage="labs-request-errors" maxlength="12000" required></textarea>
+    <div id="labs-request-hint" class="text-small">Un RUT por línea, o separados por comas. Incluye el dígito verificador.</div>
+    <div style="margin-top:16px">
+      <label class="form-check">
+        <input class="form-check-input" type="checkbox" data-field="merge" aria-describedby="labs-request-merge-hint">
+        <span class="form-check-label">Un PDF por paciente y fuente</span>
+      </label>
+      <div id="labs-request-merge-hint" class="text-small">Cada fuente por separado; los registros más recientes primero.</div>
+      <label class="form-check">
+        <input class="form-check-input" type="checkbox" data-field="patient-merge" aria-describedby="labs-request-patient-merge-hint">
+        <span class="form-check-label">Además, un PDF único con todos los documentos de cada paciente</span>
+      </label>
+      <div id="labs-request-patient-merge-hint" class="text-small">Incluye los PDF de los portales e imágenes; correo se entrega aparte. Conserva los archivos separados. Solo se crea si todas las descargas elegidas se completan.</div>
+    </div>
+<details style="margin:16px 0"><summary>Formato de entrega · opcional</summary><label class="form-label" for="labs-delivery-model">Modelo</label><select id="labs-delivery-model" data-field="delivery-model" class="form-select"><option value="documents">Solo descargar archivos</option><option value="epicrisis">Epicrisis</option><option value="telemedicina-reumatologia">Telemedicina · Reumatología</option><option value="telemedicina-gastroenterologia">Telemedicina · Gastroenterología</option><option value="evolucion-ambulatoria">Evolución · Eloísa ambulatoria</option><option value="evolucion-hospitalizados">Evolución · Hospitalizados</option><option value="custom">Libre</option></select><textarea data-field="delivery-instructions" aria-label="Describe la entrega" placeholder="¿Qué necesitas recibir?" rows="3" maxlength="2000" hidden></textarea><p data-field="template-state" hidden class="text-small">Plantilla pendiente</p></details>    <div class="viz-row" style="margin-top:16px">
+      <button class="btn btn-primary" type="submit" data-field="submit" disabled>Solicitar descarga</button>
+      <span data-field="summary" aria-live="polite">Añade al menos un RUT.</span>
+    </div>
+    <div id="labs-request-errors" data-field="errors" class="text-destructive" role="alert" hidden style="margin-top:12px;white-space:pre-wrap"></div>
+    <div data-field="status" role="status" aria-live="polite" hidden style="margin-top:12px"></div>
+  </form>
+  <div data-field="fallback" hidden style="margin-top:16px">
+    <label class="form-label" for="labs-request-prompt">Solicitud para pegar en este chat</label>
+    <textarea id="labs-request-prompt" class="form-control" data-field="prompt" rows="7" readonly></textarea>
+    <div class="viz-row" style="margin-top:12px"><button class="btn" type="button" data-field="select">Seleccionar solicitud</button></div>
+  </div>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('labs-request-six-sources');
+  if (!root) return;
+  const get = name => root.querySelector('[data-field="' + name + '"]');
+  const fields = Object.fromEntries(['toggle-email','wrap-email','reset-email','period-email','label-email','eloisa-content-wrap','rayen-content-wrap','delivery-instructions','toggle-syslab','wrap-syslab','reset-syslab','period-syslab','label-syslab','toggle-exalab','wrap-exalab','reset-exalab','period-exalab','label-exalab','toggle-eloisa','wrap-eloisa','reset-eloisa','period-eloisa','label-eloisa','toggle-his','wrap-his','reset-his','period-his','label-his','toggle-rayen','wrap-rayen','reset-rayen','period-rayen','label-rayen','toggle-mmrad','wrap-mmrad','reset-mmrad','period-mmrad','label-mmrad','delivery-model','template-state','apply-all','form','syslab','exalab','eloisa','mmrad','his','rayen','email','period-slider','period-label','latest','mmrad-reports','mmrad-radiographs','eloisa-scope','scope-wrap','mmrad-mode','mmrad-mode-wrap','mmrad-note','period','ruts','merge','patient-merge','submit','summary','errors','status','fallback','prompt','select'].map(name => [name,get(name)]));
+  const sources = {syslab:'Syslab Hanga Roa',exalab:'Exalab SSMO',eloisa:'Eloísa Ambulatorio',mmrad:'MMRAD RIS',his:'HIS Hanga Roa',rayen:'Eloísa Hospitalizados',email:'Correo institucional'};
+  const selectedSources = () => Object.keys(sources).filter(name => fields[name].checked);
+  const periods = {'30d':'últimos 30 días','3m':'últimos 3 meses','6m':'últimos 6 meses','1y':'último año','2y':'últimos 2 años','5y':'últimos 5 años','10y':'últimos 10 años',latest:'último registro disponible por paciente y fuente'};
+  let sending = false;
+  const imageTypes = () => ['radiographs'].filter(type => fields['mmrad-'+type].checked);
+  const periodValues = ['30d','3m','6m','1y','2y','5y','10y'];
+
+  const modelLabels = {"documents": "Solo descargar archivos", "epicrisis": "Epicrisis", "telemedicina-reumatologia": "Telemedicina · Reumatología", "telemedicina-gastroenterologia": "Telemedicina · Gastroenterología", "evolucion-ambulatoria": "Evolución · Eloísa ambulatoria", "evolucion-hospitalizados": "Evolución · Hospitalizados", "custom":"Libre"};
+  const customPeriods = {}, expandedPeriods = new Set();
+  const customFields = Object.keys(sources).flatMap(key => ['toggle-'+key,'period-'+key,'reset-'+key]);
+  function sourcePeriods() {
+    return Object.fromEntries(selectedSources().filter(key => Object.hasOwn(customPeriods,key))
+      .map(key => [key,customPeriods[key]]).filter(([,period]) => period !== fields.period.value));
+  }
+  for (const key of Object.keys(sources)) {
+    fields['toggle-'+key].addEventListener('click',() => {
+      if (expandedPeriods.has(key)) expandedPeriods.delete(key);else expandedPeriods.add(key);
+      update();
+    });
+    fields['reset-'+key].addEventListener('click',() => {
+      delete customPeriods[key];expandedPeriods.delete(key);update();saveChoices();
+      fields['toggle-'+key].focus();
+    });
+    fields['period-'+key].addEventListener('input',() => {
+      customPeriods[key] = [...periodValues,'latest'][Number(fields['period-'+key].value)];
+      update();saveChoices();
+    });
+  }
+  fields['apply-all'].addEventListener('click',() => {
+    for (const key of Object.keys(customPeriods)) delete customPeriods[key];
+    expandedPeriods.clear();update();saveChoices();
+  });
+  function parseRuts(raw) {
+    const tokens = raw.trim() ? raw.trim().split(/[\s,;]+/).filter(Boolean) : [];
+    const ruts = [], errors = [];
+    for (const token of tokens) {
+      const normalized = token.replace(/\./g,'').toUpperCase();
+      const match = /^(\d{7,8})-([0-9K])$/.exec(normalized);
+      if (!match) { errors.push(token + ': usa el RUT completo con guion y dígito verificador.'); continue; }
+      const digits = Array.from(match[1]).reverse();
+      const total = digits.reduce((sum,digit,i) => sum + Number(digit) * (2 + i % 6),0);
+      const check = 11 - total % 11;
+      const expected = check === 11 ? '0' : check === 10 ? 'K' : String(check);
+      if (expected !== match[2]) { errors.push(token + ': el dígito verificador no coincide.'); continue; }
+      if (!ruts.includes(normalized)) ruts.push(normalized);
+    }
+    return {ruts,errors,duplicates:tokens.length - ruts.length - errors.length};
+  }
+
+  function sourceContent() {
+    const result=Object.fromEntries(['eloisa','rayen'].filter(source => selectedSources().includes(source)).map(source =>
+      [source,Array.from(root.querySelectorAll(`[data-content="${source}"]:checked`),box => box.value)]));
+    if (fields.mmrad.checked && fields['mmrad-reports'].checked) result.mmrad=['ct_reports'];
+    return result;
+  }
+  function buildPrompt(ruts) {
+    const chosen = selectedSources();
+    const sourceArg = chosen.join(',');
+    const exceptions = sourcePeriods();
+    const perSource = Object.keys(exceptions).length ? ' Aplica --source-periods '+JSON.stringify(exceptions)+'.' : '';
+    const model = fields['delivery-model'].value;
+    const outputModel = model === 'documents' ? '' : model === 'custom' ? '\nFormato de entrega libre, sin requerir plantilla institucional. Encargo: '+JSON.stringify(fields['delivery-instructions'].value.trim())+'. Usa reporte-clinico; fechas DD-MM-AAAA, conserva fuentes y no firmes ni publiques en la ficha.' : '\nDocumento final solicitado: '+modelLabels[model]+' ('+model+'). Usa reporte-clinico y formularios-clinicos. La plantilla del usuario está pendiente: conserva la selección y solicita esa plantilla antes de redactar con este modelo. No inventes un formato institucional. El documento generado será un borrador distinto de las fuentes originales; no firmes ni publiques en la ficha clínica. Guarda DOCX y TXT en el expediente por nombre con eloisa-archivo-drive. Fechas DD-MM-AAAA; preserva la entrega parcial.';
+    const scope = ' Contenidos: usa --source-content '+JSON.stringify(sourceContent())+'. Si incluye rayen/record, sigue rayen-epicrisis/references/ficha-completa.md; el visor debe completarse con descarga y verificación, nunca declararse PDF obtenido por abrirlo.';
+    const mmradMode = chosen.includes('mmrad') ? ' Para MMRAD usa --mmrad-mode ' + fields['mmrad-mode'].value + (imageTypes().length ? ' --mmrad-image-types ' + imageTypes().join(',') : '') + '. Excluye imágenes de ecocardiografías; busca su informe en Eloísa sólo si adjuntos está seleccionado. MMRAD ct_reports limita informes a TAC. Descarga únicamente los tipos de imagen marcados, un PDF por estudio; conserva sus DICOM originales.' : '';
+    const delivery = fields.merge.checked ? 'Activa --merge para laboratorios e informes: entrega un PDF por paciente y fuente con todas las páginas, ordenados del más reciente al más antiguo. Las imágenes MMRAD siguen en un PDF por estudio. Si falla algún registro, informa la descarga parcial y no presentes el consolidado como completo.' : 'Entrega los PDF individuales por registro, agrupados por paciente y fuente.';
+    const patientMerge = fields['patient-merge'].checked ? ' Activa además --patient-merge: crea un PDF único por paciente con los documentos verificados de los portales, incluidos los PDF de imágenes; correo se entrega aparte, conservando también los separados. Si falta una fuente o estudio, informa el error y no publiques el PDF único como completo.' : '';
+    return 'Descarga los exámenes y/o atenciones de ' + chosen.map(name => sources[name]).join(', ') + ' para estos RUT, período general: ' + periods[fields.period.value] + '.\n\n' + ruts.join('\n') + '\n\nUsa el programa unificado de la skill laboratorios-descargas con --source ' + sourceArg + '.' + perSource + scope + mmradMode + ' ' + delivery + patientMerge + ' Usa la fecha actual de Pacific/Easter. Para Chrome usa el perfil d.opazo.damiani@gmail.com y el autocompletado autorizado si hay que iniciar sesión; en Eloísa la ubicación es Hangaroa. MMRAD y HIS usan credenciales propias. Las atenciones HIS se exportan como copia PDF de la ficha HTML. Radiografías y ecografías sin informe PDF son esperables; para TC sin PDF, informa el informe pendiente. Si falta una imagen de un estudio, márcalo incompleto y no entregues su PDF. Adjunta los PDF en este chat y resume qué RUT no tienen resultados o qué registros quedaron pendientes. Las opciones ya están elegidas; no vuelvas a pedírmelas.'+outputModel+' Al cerrar, incluye el resumen numerado [X]/[~]/[ ] de las siete fuentes y guarda el mismo texto en TXT según references/cierre-fuentes.md. Si se eligió email, usa $correo-clinico con la cuenta daniel.opazo@hospitalhangaroa.cl y el período propio de email; verifica identidad de mensajes y adjuntos y conserva lo obtenido de las demás fuentes.';
+  }
+
+  function saveChoices() {
+    if (typeof window.openai?.setWidgetState !== 'function') return;
+    try {
+      Promise.resolve(window.openai.setWidgetState({modelContent:{sources:selectedSources(),sourceContent:sourceContent(),deliveryModel:fields['delivery-model'].value,sourcePeriods:sourcePeriods(),period:fields.period.value,merge:fields.merge.checked,patientMerge:fields['patient-merge'].checked,eloisaScope:fields['eloisa-scope'].value,mmradMode:fields['mmrad-mode'].value,mmradImageTypes:imageTypes()},privateContent:null})).catch(() => {});
+    } catch (_) {}
+  }
+
+  function restore(state) {
+    const saved = state?.modelContent;
+    if (saved && Array.isArray(saved.sources) && saved.sources.every(name => Object.hasOwn(sources,name))) {
+      for (const name of Object.keys(sources)) fields[name].checked = saved.sources.includes(name);
+    }
+    if (saved && Object.hasOwn(periods,saved.period)) { fields.period.value = saved.period;fields.latest.checked = saved.period === 'latest';if (!fields.latest.checked) fields['period-slider'].value = periodValues.indexOf(saved.period); }
+    if (typeof saved?.merge === 'boolean') fields.merge.checked = saved.merge;
+    if (typeof saved?.patientMerge === 'boolean') fields['patient-merge'].checked = saved.patientMerge;
+    if (['medicos','todos'].includes(saved?.eloisaScope)) fields['eloisa-scope'].value = saved.eloisaScope;
+    if (['reports','images','both'].includes(saved?.mmradMode)) { fields['mmrad-reports'].checked = saved.mmradMode !== 'images';for (const type of ['radiographs']) fields['mmrad-'+type].checked = Array.isArray(saved.mmradImageTypes) ? saved.mmradImageTypes.includes(type) : saved.mmradMode !== 'reports'; }
+    if (saved && Object.hasOwn(modelLabels,saved.deliveryModel)) fields['delivery-model'].value = saved.deliveryModel;
+    for (const key of Object.keys(sources)) {
+      const own = saved?.sourcePeriods?.[key];
+      if (Object.hasOwn(periods,own)) customPeriods[key] = own;else delete customPeriods[key];
+    }
+    for (const box of root.querySelectorAll('[data-content]')) {
+      const items=saved?.sourceContent?.[box.dataset.content];
+      if (Array.isArray(items)) box.checked=items.includes(box.value);
+    }
+    update();
+  }
+
+  function update() {
+    const result = parseRuts(fields.ruts.value);
+    fields['template-state'].hidden = ['documents','custom'].includes(fields['delivery-model'].value);
+    fields['delivery-instructions'].hidden = fields['delivery-model'].value !== 'custom';
+    fields['delivery-instructions'].disabled = sending || fields['delivery-model'].value !== 'custom';
+    if (fields['delivery-model'].value === 'custom' && !fields['delivery-instructions'].value.trim()) result.errors.push('Describe la entrega libre.');
+    for (const source of ['eloisa','rayen']) {
+      fields[source+'-content-wrap'].hidden = !fields[source].checked;
+      for(const box of root.querySelectorAll(`[data-content="${source}"]`)) box.disabled=sending || !fields[source].checked;
+      if (fields[source].checked && !sourceContent()[source].length) result.errors.push('Selecciona contenido de '+sources[source]+'.');
+    }
+    fields.period.value = fields.latest.checked ? 'latest' : periodValues[Number(fields['period-slider'].value)];
+    fields['period-slider'].disabled = fields.latest.checked || sending;
+    fields['period-slider'].setAttribute('aria-valuetext',periods[periodValues[Number(fields['period-slider'].value)]]);
+    fields['period-label'].textContent = periods[fields.period.value];
+    for (const key of Object.keys(sources)) {
+      const own = Object.hasOwn(customPeriods,key);
+      const effective = own ? customPeriods[key] : fields.period.value;
+      fields['period-'+key].value = [...periodValues,'latest'].indexOf(effective);
+      fields['toggle-'+key].disabled = !fields[key].checked || sending;
+      fields['period-'+key].disabled = !fields[key].checked || sending;
+      fields['label-'+key].textContent = ['30 días','3 meses','6 meses','1 año','2 años','5 años','10 años','Último'][Number(fields['period-'+key].value)]+(own ? ' · propio' : '');
+      fields['toggle-'+key].setAttribute('aria-label','Período '+sources[key]+': '+periods[effective]+(own ? ', personalizado' : ''));
+      const expanded = fields[key].checked && expandedPeriods.has(key);
+      fields['toggle-'+key].setAttribute('aria-expanded',String(expanded));
+      fields['wrap-'+key].hidden = !expanded;
+      fields['reset-'+key].hidden = !own;
+      fields['period-'+key].setAttribute('aria-valuetext',periods[effective]);
+    }
+    fields['mmrad-mode'].value = fields['mmrad-reports'].checked ? (imageTypes().length ? 'both' : 'reports') : 'images';
+    if (fields.mmrad.checked && !fields['mmrad-reports'].checked && !imageTypes().length) result.errors.push('Elige al menos un tipo de descarga MMRAD.');
+    fields['scope-wrap'].hidden = true;
+    fields['mmrad-mode-wrap'].hidden = !fields.mmrad.checked;
+    fields['mmrad-note'].hidden = !fields.mmrad.checked;
+    fields.submit.disabled = sending || !result.ruts.length || !!result.errors.length || !selectedSources().length;
+    fields.errors.textContent = result.errors.join('\n');
+    fields.errors.hidden = !result.errors.length;
+    fields.ruts.setAttribute('aria-invalid',result.errors.length ? 'true' : 'false');
+    fields.summary.textContent = !selectedSources().length ? 'Selecciona al menos una fuente.' : result.ruts.length ? result.ruts.length + (result.ruts.length === 1 ? ' paciente' : ' pacientes') + (result.duplicates ? ' · duplicados omitidos' : '') : 'Añade al menos un RUT.';
+    fields.prompt.value = result.ruts.length && !result.errors.length && selectedSources().length ? buildPrompt(result.ruts) : '';
+    return result;
+  }
+
+  for (const field of [...root.querySelectorAll('[data-content]'),fields['delivery-instructions']]) field.addEventListener('input',() => {fields.fallback.hidden=true;update();if(field.dataset.content) saveChoices();});
+  fields.ruts.addEventListener('input',() => {
+    fields.status.hidden = true;
+    fields.fallback.hidden = true;
+    update();
+  });
+  for (const field of [...customFields.map(name => fields[name]),fields['delivery-model'],fields.syslab,fields.exalab,fields.eloisa,fields.mmrad,fields.his,fields.rayen,fields.email,fields.latest,fields['period-slider'],fields['mmrad-reports'],fields['mmrad-radiographs'],fields['eloisa-scope'],fields['mmrad-mode'],fields.period,fields.merge,fields['patient-merge']]) {
+    field.addEventListener('change',() => {
+      fields.status.hidden = true;
+      fields.fallback.hidden = true;
+      update();
+      saveChoices();
+    });
+  }
+  fields['period-slider'].addEventListener('input',() => { update();saveChoices(); });
+  fields.select.addEventListener('click',() => { fields.prompt.focus(); fields.prompt.select(); });
+  fields.form.addEventListener('submit',async event => {
+    event.preventDefault();
+    if (sending) return;
+    const result = update();
+    if (!result.ruts.length || result.errors.length || !selectedSources().length) {
+      fields.ruts.focus();
+      return;
+    }
+    const prompt = buildPrompt(result.ruts);
+    if (typeof window.openai?.sendFollowUpMessage !== 'function') {
+      fields.fallback.hidden = false;
+      fields.prompt.value = prompt;
+      fields.status.textContent = 'Pega la solicitud de abajo en este chat para iniciar la descarga.';
+      fields.status.hidden = false;
+      return;
+    }
+    sending = true;
+    fields.submit.textContent = 'Enviando solicitud…';
+    fields.status.hidden = true;
+    for (const name of [...customFields,'delivery-model','syslab','exalab','eloisa','mmrad','his','rayen','email','period-slider','period-label','latest','mmrad-reports','mmrad-radiographs','eloisa-scope','mmrad-mode','period','ruts','merge','patient-merge']) fields[name].disabled = true;
+    update();
+    try {
+      await window.openai.sendFollowUpMessage({prompt,title:'Descargar registros de ' + result.ruts.length + (result.ruts.length === 1 ? ' paciente' : ' pacientes')});
+      fields.status.textContent = 'Solicitud enviada al chat. Los PDF aparecerán en la respuesta.';
+      fields.status.hidden = false;
+    } catch (_) {
+      fields.status.textContent = 'La solicitud no se envió. Puedes volver a intentarlo o pegar el texto de abajo en el chat.';
+      fields.status.hidden = false;
+      fields.fallback.hidden = false;
+      fields.prompt.value = prompt;
+    } finally {
+      sending = false;
+      for (const name of [...customFields,'delivery-model','syslab','exalab','eloisa','mmrad','his','rayen','email','period-slider','period-label','latest','mmrad-reports','mmrad-radiographs','eloisa-scope','mmrad-mode','period','ruts','merge','patient-merge']) fields[name].disabled = false;
+      fields.submit.textContent = 'Solicitar descarga';
+      update();
+    }
+  });
+  window.addEventListener('openai:set_globals',event => {
+    if (!sending && event.detail?.globals?.widgetState) restore(event.detail.globals.widgetState);
+  });
+  restore(window.openai?.widgetState);
+})();
+</script>
