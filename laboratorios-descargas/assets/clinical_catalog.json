@@ -1,6 +1,18 @@
 {
   "version": 1,
   "packetVersion": 4,
+  "identity": {"minDigits":7,"maxDigits":8,"maxPatients":200},
+  "sources": {"syslab":"Syslab","exalab":"Exalab","eloisa":"Eloísa Ambulatorio","mmrad":"MMRAD","his":"HIS","rayen":"Eloísa Hospitalizados","email":"Correo"},
+  "periods": [
+    {"value":"30d","label":"Últimos 30 días","short":"30 días","stop":"30 d","days":30},
+    {"value":"3m","label":"Últimos 3 meses","short":"3 meses","stop":"3 m","months":3},
+    {"value":"6m","label":"Últimos 6 meses","short":"6 meses","stop":"6 m","months":6},
+    {"value":"1y","label":"Último año","short":"1 año","stop":"1 a","months":12},
+    {"value":"2y","label":"Últimos 2 años","short":"2 años","stop":"2 a","months":24},
+    {"value":"5y","label":"Últimos 5 años","short":"5 años","stop":"5 a","months":60},
+    {"value":"10y","label":"Últimos 10 años","short":"10 años","stop":"10 a","months":120},
+    {"value":"latest","label":"Último registro","short":"Último"}
+  ],
   "content": {
     "eloisa": [
       {"id":"medical","label":"Evoluciones médicas","default":true},

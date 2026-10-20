@@ -361,7 +361,11 @@ class PersistentLauncher:
 
     def _archive_once(self,job):
         try:
-            with self.lock:self._review_status(job);self._receipt(job);summary=copy.deepcopy(job['_summary'])
+            from clinical_artifacts import states
+            with self.lock:
+                self._review_status(job);self._receipt(job);summary=copy.deepcopy(job['_summary'])
+                summary['publication_job']={k:job[k] for k in ('id','as_of','started_at')}
+                summary['artifacts']=[r['artifact'] for r in states(job) if r['status'] in ('verified','archived')]
             result=PatientArchive(job['work_output'],self.archive_root,self.verifier).archive(summary) if summary else {'status':'pending','sync':'pending','files':[]}
         except Exception:result={'status':'pending','sync':'pending','files':[],'pending':['Archivo en Drive pendiente; documentos locales conservados.']}
         with self.lock:job['archive']=result;job['archive_dirty']=False;self._persist()
@@ -383,14 +387,17 @@ class PersistentLauncher:
             self._receipt(job);job['archive_dirty']=True;self._persist();self.wake.set()
 
     def status(self,ident):
+        from clinical_artifacts import states
         with self.lock:
             job=self.jobs.get(ident)
             if not job:raise ValueError('Solicitud no encontrada.')
             self._review_status(job)
+            products=states(job)
+            fulfillment='complete' if job['status']=='complete' and job['archive'].get('status')=='complete' and all(p['status']=='archived' for p in products) else 'pending'
             return {'id':ident,'status':job['status'],**self._bridge_request(job),'lines':list(job['lines']),
                     'receipts':[dict(r,index=i) for i,r in enumerate(job.get('receipts',[]))],
                     'email_account':job.get('email_account'),'summary':copy.deepcopy(job['summary']),'source_states':dict(job['source_states']),'code':job['code'],
-                    'archive':copy.deepcopy(job['archive']),'started_at':job['started_at'],'delivery':delivery_state(job),'period':job['period'],'source_periods':dict(job.get('source_periods',{})),'source_content':copy.deepcopy(job.get('source_content',{})),
+                    'archive':copy.deepcopy(job['archive']),'started_at':job['started_at'],'delivery':delivery_state(job),'artifacts':products,'fulfillment':fulfillment,'period':job['period'],'source_periods':dict(job.get('source_periods',{})),'source_content':copy.deepcopy(job.get('source_content',{})),
                     'files':[{'name':f['name'],'source':f['source'],'rut':f['rut'],'index':i,'sha256':f['sha256']} for i,f in enumerate(job['files'])]}
 
     def delivery_request(self,ident):
@@ -400,6 +407,18 @@ class PersistentLauncher:
             self._review_status(job)
             self._receipt(job);self._persist()
             return delivery_handoff(job,self.output)
+
+    def register_delivery(self,submission):
+        from clinical_artifacts import register, states
+        with self.archive_lock:
+            with self.lock:
+                job=self.jobs.get(submission.get('jobId'))
+                if not job:raise ValueError('Solicitud no encontrada.')
+                self._review_status(job)
+                result=register(job,submission)
+                job['archive_dirty']=True;self._persist()
+            self._archive_once(job)
+            with self.lock:return {'key':result['key'],'reused':result['reused'],'artifacts':states(job)}
 
     def history(self):
         with self.lock:return [{'id':j['id'],'status':j['status'],'started_at':j['started_at'],'sources':j['selected'],'patients':len(j['ruts']),'delivery':delivery_state(j)} for j in reversed(list(self.jobs.values()))]

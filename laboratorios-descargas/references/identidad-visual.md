@@ -1,6 +1,6 @@
 # Nexo — 19-10-2026
 
-Nombre visible: **Nexo · Consulta clínica**. Reemplaza «Puente local de descargas clínicas» en Chrome. La carpeta de instalación conserva su ruta para que Chrome mantenga la misma extensión. Versión 3.1.0; no agrega permisos ni modifica solicitudes, fuentes o almacenamiento.
+Nombre visible: **Nexo · Consulta clínica**. Reemplaza «Puente local de descargas clínicas» en Chrome. La carpeta de instalación conserva su ruta para que Chrome mantenga la misma extensión. Versión 3.3.0; mantiene permisos y contrato portátil. El formulario deriva períodos y modelos de los catálogos canónicos; el panel local distingue entregas pendientes, verificadas y archivadas.
 
 Identidad: N blanca de cintas enlazadas sobre azul eléctrico/violeta; interfaz neutra con acento violeta. Original `assets/brand/nexo-original.png`; cabecera `assets/brand/nexo-128.png`. Iconos PNG separados de 16, 32, 48 y 128 píxeles en `chrome-bridge/icons/`, conforme a [Chrome](https://developer.chrome.com/docs/extensions/reference/manifest/icons). El generador copia el icono al formulario de extensión e integra sus bytes en el HTML portátil; no requiere red para mostrarlo.
 

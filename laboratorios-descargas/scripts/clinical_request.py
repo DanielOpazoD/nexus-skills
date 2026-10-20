@@ -46,7 +46,7 @@ def _validate_request(request, *, local=False, version=4):
             raise ValueError('Identificador y fecha de solicitud inválidos.')
         date.fromisoformat(req['asOf'])
     ruts=req.get('ruts')
-    if not isinstance(ruts,list) or not 1<=len(ruts)<=200 or any(not isinstance(x,str) for x in ruts):raise ValueError('Ingresa entre 1 y 200 RUT.')
+    if not isinstance(ruts,list) or not 1<=len(ruts)<=domain.IDENTITY['maxPatients'] or any(not isinstance(x,str) for x in ruts):raise ValueError('Ingresa entre 1 y '+str(domain.IDENTITY['maxPatients'])+' RUT.')
     req['ruts']=domain.normalize_ruts(ruts)
     source=req.get('source')
     if not isinstance(source,str):raise ValueError('Selecciona fuentes.')

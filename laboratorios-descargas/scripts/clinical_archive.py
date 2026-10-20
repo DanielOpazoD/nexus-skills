@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 import tempfile
 import unicodedata
 import urllib.parse
@@ -16,6 +17,13 @@ DEFAULT_ROOT = Path.home() / 'Library/CloudStorage/GoogleDrive-d.opazo.damiani@g
 FOLDERS = {'syslab':'Laboratorio HHR', 'exalab':'Laboratorio HDS', 'eloisa':'Atenciones Eloisa',
            'email':'Correo', 'his':'Atenciones HIS HHR', 'rayen':'Epicrisis Rayen', 'mmrad':'Imagenologia MMRAD',
            'mmrad_images':'Imagenologia MMRAD/imagenes_pdf'}
+READING_FOLDER = 'Lectura y entregas'
+CONTROL_FOLDER = 'Control y trazabilidad'
+CONTROL_PREFIXES = ('identidad del paciente', 'estado de descargas', 'resumen de fuentes',
+                    'cierre revisado de fuentes', 'observaciones documentales',
+                    'índice de fuentes', 'indice de fuentes', 'manifiesto de archivos')
+DELIVERY_PREFIXES = ('resumen de antecedentes', 'resumen telereumatología', 'resumen telereumatologia',
+                     'lab hhr ', 'lab hds ', 'eloisa ambulatorio ', 'eloisa hospitalizados ', 'mmrad ')
 
 class ArchiveError(Exception): pass
 
@@ -53,6 +61,20 @@ def atomic_json(path, data):
         os.replace(temp, path)
     finally: Path(temp).unlink(missing_ok=True)
 
+def publish_without_replace(temporary, target):
+    """Atomic no-replace publication; avoid hard links on macOS File Provider volumes."""
+    if sys.platform=='darwin':
+        import ctypes
+        rename=ctypes.CDLL(None,use_errno=True).renamex_np
+        rename.argtypes=(ctypes.c_char_p,ctypes.c_char_p,ctypes.c_uint)
+        rename.restype=ctypes.c_int
+        # macOS rename(2): RENAME_EXCL, defined in sys/stdio.h.
+        if rename(os.fsencode(temporary),os.fsencode(target),0x00000004):
+            code=ctypes.get_errno();raise OSError(code,os.strerror(code))
+    else:
+        os.link(temporary,target)
+        Path(temporary).unlink()
+
 def copy_version(source, destination, expected=None):
     """Publicar bytes completos, sin sobrescribir versiones y verificando la copia."""
     source = Path(source)
@@ -72,14 +94,48 @@ def copy_version(source, destination, expected=None):
         stamp=datetime.now(ZoneInfo('Pacific/Easter')).strftime('%d-%m-%Y_%H-%M-%S')
         while True:
             try:
-                os.link(temporary, target)
+                publish_without_replace(temporary, target)
                 break
             except FileExistsError:
-                if digest(target) == checksum: return target, checksum
+                if target.is_file() and not target.is_symlink() and digest(target) == checksum:return target,checksum
                 version+=1;target=destination.with_name(destination.stem+' - '+stamp+' - v'+str(version)+destination.suffix)
         if digest(target) != checksum: raise ArchiveError('No se pudo comprobar el archivo publicado.')
         return target, checksum
     finally: Path(temporary).unlink(missing_ok=True)
+
+def organize_patient_folder(folder, apply=False):
+    """Relocate known legacy products inside one patient; never infer identity or touch sources."""
+    folder=Path(folder)
+    if folder.is_symlink() or not folder.is_dir():raise ArchiveError('Expediente no disponible o ruta no admitida.')
+    result={'files':[], 'pending':[]}
+    for base in (folder,folder/READING_FOLDER):
+        if base.is_symlink():
+            result['pending'].append('Carpeta de lectura enlazada; organización pendiente.');continue
+        if not base.is_dir():continue
+        for source in sorted(base.iterdir()):
+            if source.is_symlink() or not source.is_file():continue
+            name=unicodedata.normalize('NFC',source.name).casefold()
+            if source.suffix.lower() not in ('.txt','.docx','.pdf','.json','.csv'):continue
+            category=(CONTROL_FOLDER if name.startswith(CONTROL_PREFIXES) else
+                      READING_FOLDER if base==folder and name.startswith(DELIVERY_PREFIXES) else None)
+            dated_name=re.sub(r'^\d{2}-\d{2}-\d{4} ', '', name)
+            if dated_name.startswith('sustento resumen antecedentes'):category=CONTROL_FOLDER
+            elif base==folder and dated_name.startswith('resumen antecedentes'):category=READING_FOLDER
+            if not category:continue
+            destination=folder/category/source.name
+            try:
+                if (folder/category).is_symlink() or destination.is_symlink() or not destination.resolve().is_relative_to(folder.resolve()):
+                    raise ArchiveError('Destino de organización no admitido.')
+                sha=digest(source)
+                if apply:
+                    target,checksum=copy_version(source,destination,sha)
+                    if digest(source)!=sha or digest(target)!=sha:
+                        raise ArchiveError('Archivo cambiado durante la organización; original conservado.')
+                    source.unlink()  # Solo después de verificar el contenido en su destino.
+                else:target,checksum=destination,sha
+                result['files'].append({'path':str(target),'sha256':checksum})
+            except (ArchiveError,OSError,ValueError) as error:result['pending'].append(str(error))
+    return result
 
 class DriveVerifier:
     """Solo lectura: confirma ancestros, nombre, tamaño y checksum remotos.
@@ -140,7 +196,10 @@ class PatientArchive:
     def _folder_identity(self, folder):
         identities=set()
         names=['Identidad del paciente.txt','Resumen de antecedentes.txt']
-        files=[folder/n for n in names]+list(folder.glob('Estado de descargas - *.txt'))
+        files=[]
+        for base in (folder,folder/CONTROL_FOLDER,folder/READING_FOLDER):
+            if base.is_symlink():continue
+            files.extend([base/n for n in names]+list(base.glob('Estado de descargas - *.txt')))
         for p in files:
             if p.is_symlink() or not p.is_file():continue
             for value in re.findall(r'^\s*(?:RUN|RUT)(?:\s+del paciente)?\s*:\s*([\d.]+\s*-\s*[\dKk])\s*$',p.read_text(errors='replace')[:2000],re.M|re.I):
@@ -169,7 +228,8 @@ class PatientArchive:
         folder=patients/name;counter=1
         while folder.exists():counter+=1;folder=patients/(name+' ('+str(counter)+')')
         folder.mkdir(mode=0o700)
-        (folder/'Identidad del paciente.txt').write_text('Paciente: '+name+'\nRUT: '+rut+'\n')
+        control=folder/CONTROL_FOLDER;control.mkdir(mode=0o700)
+        (control/'Identidad del paciente.txt').write_text('Paciente: '+name+'\nRUT: '+rut+'\n')
         self.index[rut]={'folder':folder.name};atomic_json(self.index_path,self.index)
         return folder
 
@@ -187,16 +247,28 @@ class PatientArchive:
                 name=next((r.get('patient_name') for r in rows if r.get('patient_name') and r['patient_name']!='Nombre no disponible'),None)
                 # No crear expediente vacío si no se obtuvo documento verificable.
                 if not any(r.get('files') or r.get('originals') or r.get('completed_folios') for r in rows):continue
-                folder=self.folder(rut,name);sources=[]
+                folder=self.folder(rut,name);sources=[];publication_slots={}
+                organization=organize_patient_folder(folder,apply=True)
+                result['pending'].extend(organization['pending'])
                 for row in rows:
                     source=row['source'];category=FOLDERS.get(source)
                     if not category:continue
                     manifests={m['path']:m for m in row.get('file_manifest',[])}
                     for filename in row.get('files',[]):
+                        if (row.get('reading_pdf') and filename != row['reading_pdf'] and
+                            'Documentos adjuntos' not in Path(filename).parts):
+                            continue  # Originales verificados se archivan abajo, en su subcarpeta.
                         manifest=manifests.get(filename)
                         if not manifest:
                             result['pending'].append('Falta evidencia de integridad de un archivo publicado.');continue
-                        sources.append((Path(filename),folder/'Fuentes primarias'/category/('Documentos adjuntos' if 'Documentos adjuntos' in Path(filename).parts else '')/Path(filename).name,manifest['sha256']))
+                        if filename==row.get('reading_pdf'):
+                            target=folder/READING_FOLDER/Path(filename).name
+                            publication_slots[str(Path(filename))]='source-'+source
+                        else:
+                            category_folder=folder/'Fuentes primarias'/category
+                            if 'Documentos adjuntos' in Path(filename).parts:category_folder/='Documentos adjuntos'
+                            target=category_folder/Path(filename).name
+                        sources.append((Path(filename),target,manifest['sha256']))
                     if checkpoint:
                         for key,item in checkpoint.get('reports',{}).get(rut,{}).get(source,{}).items():
                             if not item.get('sha256'):continue
@@ -224,7 +296,7 @@ class PatientArchive:
                             sources.append((src,folder/'Fuentes primarias'/'Imagenologia MMRAD'/'originales_dicom'/relative,sha))
                 for joined in summary.get('patient_pdfs',[]):
                     if joined.get('rut')==rut:
-                        for item in joined.get('file_manifest',[]):sources.append((Path(item['path']),folder/Path(item['path']).name,item['sha256']))
+                        for item in joined.get('file_manifest',[]):sources.append((Path(item['path']),folder/READING_FOLDER/Path(item['path']).name,item['sha256']))
                 def record_copy(copied,checksum):
                     entry={'path':str(copied),'sha256':checksum,'copy':'verified','sync':'pending'}
                     try:
@@ -233,11 +305,17 @@ class PatientArchive:
                     except Exception:entry['sync_reason']='Verificación de subida a Drive pendiente.'
                     result['files'].append(entry)
 
+                for item in organization['files']:record_copy(Path(item['path']),item['sha256'])
+
                 for original,target,sha in sources:
                     try:
                         if original.is_symlink() or not original.resolve().is_relative_to(self.output):raise ArchiveError('Origen fuera del área de trabajo.')
                         if not target.resolve().is_relative_to(folder.resolve()):raise ArchiveError('Destino fuera del expediente.')
-                        record_copy(*copy_version(original,target,sha))
+                        if summary.get('publication_job') and str(original) in publication_slots:
+                            from clinical_publication import publish
+                            copied,checksum,pending=publish(original,folder,sha,publication_slots[str(original)],summary['publication_job'])
+                            result['pending'].extend(pending);record_copy(copied,checksum)
+                        else:record_copy(*copy_version(original,target,sha))
                     except (ArchiveError,OSError,ValueError) as error:result['pending'].append(str(error))
                 # Estado humano; no contiene sesiones ni rutas técnicas de reanudación.
                 state='Paciente: '+clean_name(name)+'\nRUT: '+rut+'\nFecha: '+datetime.now(ZoneInfo('Pacific/Easter')).strftime('%d-%m-%Y')+'\n'
@@ -245,10 +323,10 @@ class PatientArchive:
                 state+='\nCopia local y sincronización se comprueban por separado.\n'
                 state_source=self.output/'.archivo-drive'/(rut+'-estado.txt');state_source.parent.mkdir(parents=True,exist_ok=True)
                 state_source.write_text(state)
-                status_path=folder/('Estado de descargas - '+datetime.now(ZoneInfo('Pacific/Easter')).strftime('%d-%m-%Y')+'.txt')
+                status_path=folder/CONTROL_FOLDER/('Estado de descargas - '+datetime.now(ZoneInfo('Pacific/Easter')).strftime('%d-%m-%Y')+'.txt')
                 if not status_path.resolve().is_relative_to(folder.resolve()):raise ArchiveError('Destino de estado fuera del expediente.')
                 record_copy(*copy_version(state_source,status_path))
-                identity=folder/'Identidad del paciente.txt'
+                identity=folder/CONTROL_FOLDER/'Identidad del paciente.txt'
                 if identity.is_file() and not identity.is_symlink():record_copy(identity,digest(identity))
             except (ArchiveError,OSError,ValueError,KeyError,StopIteration) as error:result['pending'].append(str(error))
         for receipt in summary.get('receipts',[]):
@@ -260,8 +338,8 @@ class PatientArchive:
                 if name:destination=self.folder(receipt['rut'],name)
                 else:
                     matches=[f for f in (self._root()/'Pacientes').glob('*') if f.is_dir() and not f.is_symlink() and self._folder_identity(f)=={receipt['rut']}]
-                    destination=matches[0] if len(matches)==1 else self._root()/'Documentos generales'/'Cierres pendientes de identificar'
-                target=destination/(source.stem+' - '+receipt['rut']+'.txt')
+                    destination=matches[0] if len(matches)==1 else self._root()/'Documentos generales'/CONTROL_FOLDER/'Cierres pendientes de identificar'
+                target=(destination/CONTROL_FOLDER if destination.parent.name=='Pacientes' else destination)/(source.stem+' - '+receipt['rut']+'.txt')
                 if not target.resolve().is_relative_to(self._root()):raise ArchiveError('Destino de resumen inválido.')
                 copied,checksum=copy_version(source,target,receipt['sha256'])
                 entry={'path':str(copied),'sha256':checksum,'copy':'verified','sync':'pending'}
@@ -270,7 +348,45 @@ class PatientArchive:
                 except Exception:entry['sync_reason']='Verificación de subida a Drive pendiente.'
                 result['files'].append(entry)
             except (ArchiveError,OSError,ValueError,KeyError) as error:result['pending'].append(str(error))
+        for artifact in summary.get('artifacts',[]):
+            try:
+                from clinical_publication import publish
+                folder=self.folder(artifact['rut'],artifact['name'])
+                for field in ('path','support'):
+                    original=Path(artifact[field])
+                    if original.is_symlink() or not original.resolve().is_relative_to(self.output):
+                        raise ArchiveError('Entrega fuera del trabajo.')
+                    sha=artifact[field+'_sha256']
+                    if field=='path':
+                        copied,checksum,pending=publish(original,folder,sha,'delivery-'+artifact['kind'],summary['publication_job'],revision=artifact['evidence_revision'])
+                        result['pending'].extend(pending)
+                    else:copied,checksum=copy_version(original,folder/CONTROL_FOLDER/original.name,sha)
+                    entry={'path':str(copied),'sha256':checksum,'copy':'verified','sync':'pending','artifact_key':artifact['key']}
+                    try:
+                        remote=self.verifier.verify(copied,copied.relative_to(self._root()))
+                        entry.update(sync=remote['status'],remote=remote)
+                    except Exception:entry['sync_reason']='Verificación de subida a Drive pendiente.'
+                    result['files'].append(entry)
+            except (ArchiveError,OSError,ValueError,KeyError) as error:result['pending'].append(str(error))
         result['files']=list({f['path']:f for f in result['files']}.values())
         if result['pending']:result['status']='partial'
         result['sync']='confirmed' if result['files'] and all(f['sync']=='confirmed' for f in result['files']) and not result['pending'] else 'pending'
         return result
+
+def main():
+    import argparse
+    parser=argparse.ArgumentParser(description='Ordenar productos conocidos dentro de cada expediente; sin consultas clínicas.')
+    parser.add_argument('--root',type=Path,default=DEFAULT_ROOT)
+    parser.add_argument('--apply',action='store_true',help='Mover después de verificar copia; por defecto solo evaluar.')
+    args=parser.parse_args()
+    patients=args.root/'Pacientes'
+    if not patients.is_dir() or patients.is_symlink():parser.error('Carpeta de pacientes no disponible.')
+    counts={'mode':'apply' if args.apply else 'dry-run','patients':0,'relocated':0,'pending':0}
+    for folder in sorted(patients.iterdir()):
+        if not folder.is_dir() or folder.is_symlink():continue
+        result=organize_patient_folder(folder,args.apply)
+        counts['patients']+=1;counts['relocated']+=len(result['files']);counts['pending']+=len(result['pending'])
+    print(json.dumps(counts,ensure_ascii=False))
+    return int(bool(counts['pending']))
+
+if __name__=='__main__':raise SystemExit(main())

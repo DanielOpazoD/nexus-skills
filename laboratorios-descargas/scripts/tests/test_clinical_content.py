@@ -77,7 +77,8 @@ class ContentTests(unittest.TestCase):
             client.client.episodes=episodes;client.client.pdf=lambda row:pdf('rayen','1')
             with tempfile.TemporaryDirectory() as tmp:
                 result=labs.run_batch([RUT],'rayen','6m',DAY,tmp,{'rayen':labs.Adapter('rayen',client)},source_content={'rayen':['epicrisis','record']})['results'][0]
-                self.assertEqual(result['status'],'partial',result);self.assertEqual(len(result['files']),1)
+                self.assertEqual(result['status'],'partial',result);self.assertEqual(len(result['files']),2)
+                self.assertIn(result['reading_pdf'],result['files'])
                 self.assertEqual(result['unavailable_records'][0]['report_type'],'record')
                 if not record_fails:self.assertIn('viewer_url',result['unavailable_records'][0])
     def test_record_only_does_not_download_unrequested_epicrisis(self):

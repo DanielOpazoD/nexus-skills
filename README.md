@@ -2,7 +2,7 @@
 
 <img src="laboratorios-descargas/assets/brand/nexo-128.png" width="80" height="80" alt="Icono de Nexo">
 
-Aplicación local, extensión de Chrome y doce skills de Codex para preparar solicitudes clínicas, consultar fuentes autorizadas y organizar documentación por paciente. Desarrollada para el flujo del Hospital Hanga Roa.
+Aplicación local, extensión de Chrome y skills de Codex para preparar solicitudes clínicas, consultar fuentes autorizadas y organizar documentación por paciente. Desarrollada para el flujo del Hospital Hanga Roa.
 
 ## Qué incluye
 
@@ -32,11 +32,15 @@ Requiere macOS, Python 3.12 y Node.js 22. El instalador prepara dependencias fij
 
 Descargar el ZIP de [Releases](https://github.com/DanielOpazoD/nexus-skills/releases), descomprimirlo y cargar esa carpeta mediante «Cargar descomprimida» en Administrar extensiones de Chrome, con modo desarrollador. También se puede cargar directamente `laboratorios-descargas/chrome-bridge`. Al actualizar una instalación existente, conservar su carpeta y recargar la extensión.
 
-El botón **Nexo** abre el formulario. «Desde agenda» usa la sesión de Eloísa de ese Mac y permite seleccionar pacientes de la agenda propia por fecha; el Air y el Mini tienen el mismo acceso a esa selección. La solicitud se copia o guarda para Codex del Mini, que ejecuta las descargas. El HTML abierto como archivo permite introducir RUT manualmente; para consultar agenda usar la extensión. Seleccionar pacientes no inicia descargas.
+El botón **Nexo** abre el formulario. «Desde agenda» usa la sesión de Eloísa de ese Mac y permite seleccionar pacientes de la agenda propia por fecha; el Air y el Mini tienen el mismo acceso a esa selección. «Enviar a Drive» deja la orden en una bandeja privada; el lanzador abierto del Mini la valida, importa y acusa. Copiar/guardar para Codex queda como respaldo. El HTML abierto como archivo permite introducir RUT manualmente; para consultar agenda usar la extensión. Seleccionar pacientes no inicia descargas.
+
+Cada paciente tiene `Lectura y entregas` para PDF integrados e informes/resúmenes preparados, `Control y trazabilidad` para cierres de fuentes, estados, observaciones e identidad, y `Fuentes primarias` para originales y adjuntos. Los PDF integrados van de la fecha clínica más reciente a la más antigua; su nombre indica el rango real incluido y `PARCIAL` si faltan documentos. `python3 laboratorios-descargas/scripts/clinical_archive.py --apply` corrige títulos conocidos de expedientes previos, verificando cada reubicación dentro del mismo paciente.
 
 ### Skills de Codex
 
-Las doce carpetas con `SKILL.md` forman el paquete clínico. Instalarlas juntas como carpetas hermanas en el directorio de skills de Codex, respaldando cualquier versión anterior; no reemplazar otras skills. La entrada principal es `$flujo-clinico`. Leer [su guía](flujo-clinico/SKILL.md) y las skills de las fuentes seleccionadas. Instalar la extensión no instala las skills.
+Las carpetas clínicas con `SKILL.md` forman el paquete. Instalarlas juntas como carpetas hermanas en el directorio de skills de Codex, respaldando cualquier versión anterior; no reemplazar otras skills. La entrada principal es `$flujo-clinico`. Leer [su guía](flujo-clinico/SKILL.md) y las skills necesarias. Instalar la extensión no instala las skills.
+
+Toda corrida clínica incorpora [Resumen de antecedentes](resumen-antecedentes/SKILL.md): `DD-MM-AAAA Resumen antecedentes.txt` por paciente, en Lectura y entregas, además de cualquier otro formato. La síntesis se redacta en Codex leyendo documentos verificados; el descargador independiente no la redacta automáticamente. El panel permite copiar ese encargo incluso con «Sin formato adicional».
 
 ## Plantillas pendientes
 
@@ -55,8 +59,8 @@ python3 scripts/package_extension.py --output /tmp/Nexo-extension.zip
 
 ## Estado de esta publicación
 
-Versión de extensión 3.1.0. Agenda: consulta real autorizada comprobada; el recorrido completo desde la extensión recargada sigue pendiente. También están pendientes el receptor automático de pedidos por Drive, biopsias, las plantillas institucionales y otros límites detallados en [capacidades](flujo-clinico/references/estado-capacidades.md).
+Versión de extensión 3.3.0 en el paquete fuente; recargarla para usar los cambios del formulario. El [registro de entregas](laboratorios-descargas/references/entregas-verificadas.md) separa fuentes, redacción, archivo y sincronización, liga cada informe a su evidencia y conserva versiones fuera de la lectura principal. Codex sigue redactando y cotejando la prosa clínica; el motor verifica y archiva. Agenda: consulta real autorizada comprobada; el recorrido completo desde la extensión recargada y el traslado Air → Mini siguen pendientes de verificación. También están pendientes biopsias, las otras plantillas institucionales y los límites detallados en [capacidades](flujo-clinico/references/estado-capacidades.md).
 
-Esta publicación inicial contiene el programa, las doce skills, pruebas, documentación y activos. El historial anterior de trabajo permanece local; se inicia un historial público sin el identificador personal de acceso que figuraba en instrucciones antiguas. No se incluyen expedientes, descargas clínicas, sesiones, contraseñas, entornos virtuales ni colas de trabajos.
+El repositorio contiene el programa, las skills clínicas, pruebas, documentación y activos. El historial anterior de trabajo permanece local; la publicación inicial omitió el identificador personal de acceso que figuraba en instrucciones antiguas. No se incluyen expedientes, descargas clínicas, sesiones, contraseñas, entornos virtuales ni colas de trabajos.
 
 Un fallo de una fuente conserva la documentación verificada de las demás. Copia local y sincronización remota se informan por separado. El programa no firma ni publica automáticamente documentos en las fichas clínicas.

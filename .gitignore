@@ -229,6 +229,8 @@
 # Identidad durable de solicitudes
 !/laboratorios-descargas/scripts/submit_request.py
 !/laboratorios-descargas/scripts/tests/test_request_identity.py
+!/laboratorios-descargas/scripts/drive_inbox.py
+!/laboratorios-descargas/scripts/tests/test_drive_inbox.py
 
 # Dominio, recuperación y estados separados
 !laboratorios-descargas/scripts/clinical_domain.py
@@ -290,3 +292,24 @@
 !/plantillas/evolucion-ambulatoria/README.md
 !/plantillas/evolucion-hospitalizados/
 !/plantillas/evolucion-hospitalizados/README.md
+
+# Formato de telereumatología: instrucciones y estructura sin datos clínicos
+!/telereumatologia/
+!/telereumatologia/SKILL.md
+!/telereumatologia/agents/
+!/telereumatologia/agents/openai.yaml
+!/telereumatologia/references/
+!/telereumatologia/references/estructura.md
+
+# Entrega basal de antecedentes, sin datos clínicos
+!/resumen-antecedentes/
+!/resumen-antecedentes/SKILL.md
+!/resumen-antecedentes/agents/
+!/resumen-antecedentes/agents/openai.yaml
+
+# Registro y publicación determinista de entregas
+!/laboratorios-descargas/scripts/clinical_artifacts.py
+!/laboratorios-descargas/scripts/clinical_publication.py
+!/laboratorios-descargas/scripts/register_delivery.py
+!/laboratorios-descargas/scripts/tests/test_artifact_lifecycle.py
+!/laboratorios-descargas/references/entregas-verificadas.md

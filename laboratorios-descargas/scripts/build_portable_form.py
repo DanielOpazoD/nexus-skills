@@ -7,9 +7,22 @@ from html import escape
 
 def sync_catalog(assets):
     catalog=json.loads((assets/'clinical_catalog.json').read_text())
+    # Catálogos canónicos; JS/HTML son derivados, no otra definición del contrato.
+    delivery_path=Path(__file__).resolve().parents[2]/'reporte-clinico/references/modelos-entrega.json'
+    deliveries=json.loads(delivery_path.read_text())
+    catalog['delivery']=deliveries
     (assets/'clinical_catalog.js').write_text('// Generado desde clinical_catalog.json; ejecutar build_portable_form.py.\n'+'globalThis.ClinicalCatalog='+json.dumps(catalog,ensure_ascii=False,separators=(',',':'))+';\n')
     local=(assets/'local_app.html').read_text()
     widget=(assets/'solicitud-examenes.html').read_text()
+    options=''.join('<option value="'+escape(m['id'])+'">'+escape(m['label'])+'</option>' for m in deliveries['models'])
+    local,n=re.subn(r'(<select id="delivery-model" name="deliveryModel">).*?(</select>)',lambda m:m[1]+options+m[2],local,flags=re.S)
+    if n!=1:raise ValueError('Falta selector de entrega.')
+    stops=''.join('<button type="button" data-period="'+str(i)+'">'+escape(p['stop'])+'</button>' for i,p in enumerate(catalog['periods']) if p['value']!='latest')
+    local,n=re.subn(r'(<div class="period-stops">).*?(</div>)',lambda m:m[1]+stops+m[2],local,flags=re.S)
+    if n!=1:raise ValueError('Falta selector de período.')
+    maximum=len(catalog['periods'])-2
+    local=re.sub(r'(id="period-range" min="0" max=")\d+',lambda m:m[1]+str(maximum),local)
+    local=re.sub(r'(<input type="range" min="0" max=")\d+("[^>]*data-source-period=)',lambda m:m[1]+str(maximum+1)+m[2],local)
     for source in ('eloisa','rayen'):
         items=catalog['content'][source]
         labels=''.join('<label><input type="checkbox" name="'+source+'Content" value="'+escape(x['id'])+'"'+(' checked' if x['default'] else '')+'>'+escape(x['label'])+'</label>' for x in items)
@@ -33,11 +46,11 @@ def build(assets=None):
     end = html.index('<aside class="sources-panel', start)
     html = html[:start] + '</div>\n' + html[end:]
     html = html[:html.index('</form>') + len('</form>')] + '''
-<p class="portable-note">Copia y pega en Codex del Mac mini, o guarda la solicitud para trasladarla por Drive.</p>
+<p class="portable-note">Envía a la carpeta «_Solicitudes Nexo» de Google Drive. El Mac mini confirma la recepción en «acuses».</p>
 <p id="copy-status" role="status" aria-live="polite"></p>
 <details id="request-preview" class="panel portable-output"><summary>Ver solicitud</summary><textarea id="request-text" rows="8" readonly aria-label="Solicitud para Codex"></textarea></details>
 </main></body></html>'''
-    html = html.replace('<button id="run" type="submit" disabled>Agregar solicitud <span aria-hidden="true">→</span></button>', '<div class="portable-actions"><button type="button" class="text-button" id="save-request" disabled>Guardar solicitud</button><button id="run" type="submit" disabled>Copiar solicitud <span aria-hidden="true">→</span></button></div>')
+    html = html.replace('<button id="run" type="submit" disabled>Agregar solicitud <span aria-hidden="true">→</span></button>', '<div class="portable-actions"><button type="button" class="text-button" id="send-drive" disabled>Enviar a Drive</button><button type="button" class="text-button" id="save-request" disabled>Guardar solicitud</button><button id="run" type="submit" disabled>Copiar para Codex <span aria-hidden="true">→</span></button></div>')
     # The extension uses the same controls with external scripts (MV3 CSP).
     names = ('clinical_catalog.js','request_form.js','request_packet.js','portable_app.js','agenda_core.js','agenda_ui.js')
     extension = assets.parent / 'chrome-bridge'

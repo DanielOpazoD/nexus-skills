@@ -24,6 +24,9 @@ from clinical_content import normalize_source_content
 
 LABELS = {'syslab': 'Syslab HHR', 'exalab': 'Exalab SSMO', 'eloisa': 'Eloísa Ambulatorio', 'mmrad': 'MMRAD RIS', 'mmrad_images': 'MMRAD imágenes', 'his': 'HIS Hanga Roa', 'rayen': 'Eloísa Hospitalizados', 'email': 'Correo institucional'}
 FILE_LABELS = {'syslab': 'Laboratorio HHR', 'exalab': 'Laboratorio HDS', 'eloisa': 'Atenciones HHR', 'mmrad': 'Imagenología HHR', 'mmrad_images': 'Imágenes HHR', 'his': 'Atenciones HIS HHR', 'rayen': 'Epicrisis Rayen'}
+READING_LABELS = {'syslab': 'LAB HHR', 'exalab': 'LAB HDS', 'eloisa': 'Eloisa ambulatorio',
+                  'mmrad': 'MMRAD', 'rayen': 'Eloisa Hospitalizados'}
+SPANISH_MONTHS = ('Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Sept','Octubre','Noviembre','Diciembre')
 # Reexportados para conservar CLI, clientes y pruebas anteriores.
 from clinical_domain import (
     LabsError, PERIODS, SOURCE_ORDER, selected_sources, normalize_ruts,
@@ -422,7 +425,7 @@ def merge_reports(reports, rut, source):
     _, PdfWriter = pdf_library()
     writer = PdfWriter()
     expected = 0
-    for exam, report in reports:
+    for exam, report in sorted(reports, key=lambda pair: (pair[0]['datetime'], str(pair[0]['id'])), reverse=True):
         reader = validate_pdf(report_bytes(report), rut, exam['id'], source, exam['datetime'],exam.get('validation'))
         first_page = len(writer.pages)
         for page in reader.pages:
@@ -440,6 +443,64 @@ def merge_reports(reports, rut, source):
     if len(PdfReader(BytesIO(content)).pages) != expected:
         raise LabsError('El número de páginas del consolidado no coincide con los originales.')
     return content, expected
+
+
+def reading_pdf_stem(source, dates, partial=False):
+    """Name a reading copy by the clinical dates actually included, not the search window."""
+    start, end = min(dates), max(dates)
+    first = SPANISH_MONTHS[start.month - 1]
+    last = SPANISH_MONTHS[end.month - 1]
+    if (start.year, start.month) == (end.year, end.month):
+        span = f'{first} {end.year}'
+    elif start.year == end.year:
+        span = f'{first}-{last} {end.year}'
+    else:
+        span = f'{first} {start.year}-{last} {end.year}'
+    return READING_LABELS[source] + ' ' + span + (' - PARCIAL' if partial else '')
+
+
+def publish_reading_pdfs(progress, output):
+    """Derive source reading copies only from original PDFs with matching identity/hash."""
+    for row in list(progress.state['results']):
+        source, rut = row.get('source'), row.get('rut')
+        if source not in READING_LABELS or not rut:
+            continue
+        ct_ids = {str(folio['id']) for folio in row.get('folios', [])
+                  if str(folio.get('modality', '')).upper() == 'CT'} if source == 'mmrad' else None
+        reports = []
+        for key, record in progress.records(rut, source).items():
+            if not record.get('sha256') or record.get('validation', {}).get('kind') == 'attachment':
+                continue
+            folio = key.split('-')[0]
+            if ct_ids is not None and folio not in ct_ids:
+                continue
+            original = progress.path.parent / 'originales' / rut / source / (key + '.pdf')
+            try:
+                content = original.read_bytes()
+                if hashlib.sha256(content).hexdigest() != record['sha256']:
+                    continue
+                when = datetime.fromisoformat(record['date'])
+                validate_pdf(content, rut, folio, source, when, record.get('validation'))
+                reports.append(({'id':folio,'datetime':when},content))
+            except (OSError, KeyError, TypeError, ValueError, LabsError):
+                continue
+        if not reports:
+            continue
+        expected = sum(1 for folio in row.get('folios', [])
+                       if source != 'mmrad' or str(folio.get('modality', '')).upper() == 'CT')
+        partial = (row.get('status') not in ('complete','empty','no_reports') or bool(row.get('errors'))
+                   or (expected > 0 and len(reports) < expected))
+        try:
+            content, pages = merge_reports(reports, rut, source)
+            stem = reading_pdf_stem(source, [exam['datetime'] for exam,_ in reports], partial)
+            path = save_content(Path(output) / rut / source, stem, content)
+            row = dict(row, reading_pdf=str(path), reading_count=len(reports),
+                       files=list(dict.fromkeys([str(path), *row.get('files',[])])))
+            progress.update(row)
+        except (LabsError, OSError, ValueError) as error:
+            row = dict(row, reading_error=str(error),
+                       notice='No se pudo generar la copia combinada; conserva los originales verificados.')
+            progress.update(row)
 
 
 def merge_patient_documents(results, rut, output, downloaded_on):
@@ -465,6 +526,7 @@ def merge_patient_documents(results, rut, output, downloaded_on):
     for result in selected:
         for filename in result['files']:
             if result['source'] == 'email': continue  # Mensajes y adjuntos se entregan aparte, sin alterar originales.
+            if filename == result.get('reading_pdf'): continue  # Evitar páginas duplicadas; originales siguen incluidos.
             path = Path(filename).resolve()
             if not path.is_relative_to(patient_root) or path.suffix.lower() != '.pdf':
                 raise LabsError('Un PDF no pertenece a la carpeta del paciente.')
@@ -890,6 +952,8 @@ def run_batch(ruts, source, period, today, output, clients, merge=False, list_on
                     clients.pop(site, None)
                     blocked_auth.add(site)
                     setup_errors[site] = 'La sesión venció. Renueva el acceso del sitio y reanuda la solicitud.'
+        if not list_only:
+            publish_reading_pdfs(progress, output)
         # Documentos de todas las fuentes/pacientes antes de iniciar las imágenes.
         for rut in normalized:
             if 'mmrad' in active and mmrad_mode in ('images', 'both'):
