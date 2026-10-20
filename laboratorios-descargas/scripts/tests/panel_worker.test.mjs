@@ -2,15 +2,15 @@ import test from 'node:test';import assert from 'node:assert/strict';import vm f
 const root=new URL('../../chrome-bridge/',import.meta.url);
 const code=(await readFile(new URL('panel_worker.js',root),'utf8'))+'\n'+(await readFile(new URL('worker.js',root),'utf8'));
 function setup({failOpen=false,failFetch=false}={}){
- let listener,action;const opened=[],requests=[],tabs=[];
- const chrome={runtime:{id:'fixture',getURL:path=>'chrome-extension://fixture/'+path,onMessage:{addListener:fn=>listener=fn}},
-   action:{onClicked:{addListener:fn=>action=fn}},tabs:{create:async arg=>tabs.push(arg)},
+ let listener,action;const opened=[],requests=[],tabs=[],broadcasts=[];
+ const chrome={runtime:{id:'fixture',sendMessage:async message=>broadcasts.push(message),getURL:path=>'chrome-extension://fixture/'+path,onMessage:{addListener:fn=>listener=fn}},
+   action:{onClicked:{addListener:fn=>action=fn}},tabs:{query:async()=>[{id:7}],create:async arg=>tabs.push(arg)},
    sidePanel:{open:arg=>{opened.push(arg);return failOpen?Promise.reject(Error('private error')):Promise.resolve();}}};
  const ctx={chrome,importScripts(){},URL,AbortSignal,fetch:async(url,options)=>{
    requests.push({url,options});if(failFetch)throw Error('private-token-error');
    return new Response(JSON.stringify({version:1,patients:[],available:true}),{headers:{'content-type':'application/json'}});
  }};vm.runInNewContext(code,ctx);
- return {opened,requests,tabs,action:tab=>action(tab),message:(message,sender)=>new Promise(resolve=>{const keep=listener(message,sender,result=>resolve(result));if(!keep)resolve(null);})};
+ return {opened,requests,tabs,broadcasts,action:tab=>action(tab),message:(message,sender)=>new Promise(resolve=>{const keep=listener(message,sender,result=>resolve(result));if(!keep)resolve(null);})};
 }
 const panel={id:'fixture',url:'chrome-extension://fixture/panel/index.html'};
 test('el círculo abre el panel sólo desde Eloísa y el frame principal',async()=>{
@@ -54,4 +54,14 @@ test('abrir expediente admite sólo ID y permiso efímero del panel propio',asyn
  assert.equal(ui.requests[0].options.method,'POST');assert.equal(JSON.parse(ui.requests[0].options.body).token,request.token);
  assert.equal((await ui.message({...request,path:'/private/elsewhere'},panel)).ok,false);
  assert.equal(await ui.message(request,{id:'fixture',url:'https://clinicohangaroa.eloisa.cl/main'}),null);
+});
+
+test('sólo un cambio de la pestaña activa oficial se retransmite al panel, sin identidad',async()=>{
+ const ui=setup(),sender={id:'fixture',url:'https://clinicohangaroa.eloisa.cl/main',frameId:0,tab:{id:7}};
+ assert.equal((await ui.message({type:'nexo.patient.changed'},sender)).ok,true);
+ assert.equal(JSON.stringify(ui.broadcasts),JSON.stringify([{type:'nexo.patient.invalidated'}]));
+ await ui.message({type:'nexo.patient.changed'},{...sender,tab:{id:8}});
+ assert.equal(ui.broadcasts.length,1);
+ assert.equal(await ui.message({type:'nexo.patient.changed',rut:'11111111-1'},sender),null);
+ assert.equal(await ui.message({type:'nexo.patient.changed'},{...sender,url:'https://evil.invalid/main'}),null);
 });

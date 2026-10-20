@@ -106,3 +106,16 @@ test('un cambio de índice durante la lectura invalida la respuesta',async()=>{
  report.getFile=async()=>{manifest.products['delivery-antecedentes'].current.freshness='stale';index.content=JSON.stringify(manifest);return getFile();};
  await assert.rejects(library.read(doc.id,sha),/durante/);
 });
+
+test('actualizar un paciente detecta el nuevo TXT sin consultar los demás expedientes',async()=>{
+ const {NexoDriveLibrary:D}=setup(),one=patient(),two=patient('Otro Ficticio','22222222-2');
+ const root=directory('Pacientes',{'Paciente Ficticio':one,'Otro Ficticio':two}),library=new D.DriveLibrary(root);
+ const first=(await library.list()).patients.find(p=>p.rut==='11111111-1');
+ root.entries=async function*(){throw Error('No debe escanear Drive completo');};
+ two.getDirectoryHandle=async()=>{throw Error('No debe leer otro paciente');};
+ one.children['Lectura y entregas'].children['20-10-2026 Resumen antecedentes.txt']=file('20-10-2026 Resumen antecedentes.txt',text+'\nActualización.');
+ const updated=await library.patient(first.id);assert.equal(updated.documents.length,2);
+ const next=updated.documents.find(d=>d.id!==first.documents[0].id);
+ assert.match((await library.read(next.id,next.sha256)).text,/Actualización/);
+ await assert.rejects(library.patient('unknown'),/Expediente/);
+});

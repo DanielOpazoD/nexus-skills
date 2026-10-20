@@ -50,10 +50,10 @@
     }catch(error){if(error.name==='NotFoundError')return null;throw error;}
   }
   class DriveLibrary{
-    constructor(handle){if(handle?.kind!=='directory'||handle.name!==R.patientsFolder)throw Error('Selecciona la carpeta «Pacientes».');this.handle=handle;this.references=new Map();}
+    constructor(handle){if(handle?.kind!=='directory'||handle.name!==R.patientsFolder)throw Error('Selecciona la carpeta «Pacientes».');this.handle=handle;this.references=new Map();this.patientFolders=new Map();}
     async list(){
       if(await this.handle.queryPermission({mode:'read'})!=='granted')throw Error('Vuelve a conectar tu carpeta Pacientes.');
-      const patients=[],references=new Map();let issues=0;
+      const patients=[],references=new Map(),folders=new Map();let issues=0;
       for await(const [directoryName,handle] of this.handle.entries()){
         if(handle.kind!=='directory' || directoryName.startsWith('.'))continue;
         if(patients.length>=R.maxPatients){issues++;break;}
@@ -84,7 +84,8 @@
             }
           }catch(error){if(error.name!=='NotFoundError')throw error;}
           if(current && !documents.length)issues++;
-          patients.push({id:await C.checksum(new TextEncoder().encode(patient.rut+'\0'+directoryName)),...patient,documents,folderUrl});
+          const id=await C.checksum(new TextEncoder().encode(patient.rut+'\0'+directoryName));
+          folders.set(id,directoryName);patients.push({id,...patient,documents,folderUrl});
         }catch(_){issues++;}
       }
       const counts=new Map();for(const patient of patients)counts.set(patient.rut,(counts.get(patient.rut)||0)+1);
@@ -92,7 +93,23 @@
       issues+=patients.length-valid.length;
       const ids=new Set(valid.flatMap(p=>p.documents.map(d=>d.id)));
       this.references=new Map([...references].filter(([id])=>ids.has(id)));
+      this.patientFolders=new Map(valid.map(patient=>[patient.id,folders.get(patient.id)]));
       return {version:1,available:true,patients:valid,issues};
+    }
+    async patient(id){
+      const directoryName=this.patientFolders.get(id),root=this.handle;
+      if(!directoryName)throw Error('Expediente no disponible. Actualiza la lista.');
+      // El mismo contrato de listado, limitado al expediente ya identificado.
+      const scoped={kind:'directory',name:R.patientsFolder,
+        queryPermission:options=>root.queryPermission(options),
+        getDirectoryHandle:name=>root.getDirectoryHandle(name),
+        async *entries(){yield [directoryName,await root.getDirectoryHandle(directoryName)];}};
+      const library=new DriveLibrary(scoped),catalog=await library.list();
+      const patient=catalog.patients.find(patient=>patient.id===id);
+      if(!patient)throw Error('Expediente pendiente de revisión.');
+      for(const [key,reference] of this.references)if(reference.directoryName===directoryName)this.references.delete(key);
+      for(const [key,reference] of library.references)this.references.set(key,reference);
+      return patient;
     }
     async read(id,sha256){
       // Resolver la ruta otra vez: un handle antiguo no acredita un archivo movido.
