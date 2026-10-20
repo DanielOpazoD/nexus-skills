@@ -48,3 +48,10 @@ test('salud del Mini sólo accesible desde el panel propio y con ruta fija',asyn
  assert.equal(ui.requests[0].url,'http://127.0.0.1:8765/api/health');
  assert.equal(await ui.message({type:'nexo.worker.health'},{id:'fixture',url:'https://clinicohangaroa.eloisa.cl/main'}),null);
 });
+test('abrir expediente admite sólo ID y permiso efímero del panel propio',async()=>{
+ const ui=setup();const request={type:'nexo.library.open',id:'a'.repeat(64),token:'b'.repeat(43)};
+ assert.equal((await ui.message(request,panel)).ok,true);assert.equal(ui.requests[0].url,'http://127.0.0.1:8765/api/library/open');
+ assert.equal(ui.requests[0].options.method,'POST');assert.equal(JSON.parse(ui.requests[0].options.body).token,request.token);
+ assert.equal((await ui.message({...request,path:'/private/elsewhere'},panel)).ok,false);
+ assert.equal(await ui.message(request,{id:'fixture',url:'https://clinicohangaroa.eloisa.cl/main'}),null);
+});

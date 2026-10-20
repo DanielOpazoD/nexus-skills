@@ -2,6 +2,8 @@
 
 Descarga, redacción, copia local y sincronización son estados independientes. `status=complete` corresponde a fuentes; `fulfillment=complete` exige además todas las entregas de la orden archivadas. La sincronización remota se declara por separado. Codex redacta y coteja clínicamente; el programa valida identidad de encabezado, fechas, archivos, referencias y copias. No certifica por sí solo la exactitud médica de la prosa.
 
+La biblioteca vincula cada entrega nueva a las versiones de fuentes y huellas de originales conocidos. Documentos verificados nuevos o distintos de pedidos posteriores, incluidos adjuntos, dejan la versión anterior para revisión; un rearchivo antiguo no actualiza ese vínculo. No inferir vigencia por fecha del nombre ni por haber copiado otra vez el mismo TXT. Ver [panel y biblioteca](panel-eloisa.md).
+
 ## Contratos canónicos
 
 - `assets/clinical_catalog.json`: fuentes, períodos, contenidos y productos MMRAD. Python y formulario usan el mismo catálogo. `clinical_catalog.js`, controles y formulario portátil se generan con `build_portable_form.py`; no editar sus copias.

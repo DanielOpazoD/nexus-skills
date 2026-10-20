@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Nexo · Consulta clínica",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "minimum_chrome_version": "116",
-  "description": "Prepara solicitudes y selecciona pacientes desde la agenda de Eloísa en este Mac. Entrega sesiones al descargador local.",
+  "description": "Solicitudes clínicas, seguimiento del Mini y biblioteca de resúmenes verificados junto a Eloísa.",
   "permissions": [
     "cookies",
     "scripting",

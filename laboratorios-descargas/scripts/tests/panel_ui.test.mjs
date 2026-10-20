@@ -14,19 +14,21 @@ class Node{
  setAttribute(key,value){this.attributes[key]=value;}
  focus(){this.focused=true;}select(){this.selected=true;}
 }
-function setup({read,clipboard=async()=>{},patients=[patient]}={}){
+function setup({read,clipboard=async()=>{},patients=[patient],context=()=>null}={}){
  const nodes=new Map(),copies=[],events={},get=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
  const doc={hidden:false,getElementById:get,createElement:tag=>new Node(tag),createDocumentFragment:()=>new Node('#fragment'),addEventListener:(type,fn)=>{events[type]=fn;}};
- const reads=[];const response=()=>({id:document.id,sha256:document.sha256,text:body,status:'current',name:patient.name,rut:patient.rut});
+ const reads=[],requests=[];const response=()=>({id:document.id,sha256:document.sha256,text:body,status:'current',name:patient.name,rut:patient.rut});
  const chrome={runtime:{sendMessage:async message=>{
   if(message.type==='nexo.library.list')return {ok:true,result:{version:1,available:true,patients,issues:0}};
+  requests.push(message);
+  if(message.type==='nexo.patient.context')return {ok:true,result:{patient:context()}};
   if(message.type==='nexo.library.read'){reads.push(message);return {ok:true,result:await(read?read(message):response())};}
   return {ok:true,result:{opened:true}};
  }},tabs:{onActivated:{addListener:fn=>events.tab=fn}}};
  const ctx={ClinicalCatalog:catalog,chrome,document:doc,location:{search:''},URLSearchParams,TextEncoder,TextDecoder,Uint8Array,crypto:webcrypto,
   NexoDriveLibrary:{savedHandle:async()=>undefined},navigator:{clipboard:{writeText:async text=>{copies.push(text);await clipboard(text);}}},window:{document:doc,addEventListener:(type,fn)=>events[type]=fn}};
  vm.createContext(ctx);vm.runInContext(script,ctx);
- return {$:get,copies,reads,events,doc,ctx,async open(){get('tab-library').events.click();await tick();await tick();},async patient(){get('patient-list').children[0].children[0].events.click();await tick();await tick();},async copy(){await get('copy-summary').events.click();}};
+ return {$:get,copies,reads,requests,events,doc,ctx,async open(){get('tab-library').events.click();await tick();await tick();},async patient(){get('patient-list').children[0].children[0].events.click();await tick();await tick();},async copy(){await get('copy-summary').events.click();}};
 }
 test('elegir paciente muestra texto y copiar exige nueva comprobación; no copia al abrir',async()=>{
  const ui=setup();await ui.open();await ui.patient();assert.equal(ui.$('summary-text').value,body);assert.equal(ui.copies.length,0);assert.equal(ui.reads.length,1);
@@ -58,4 +60,14 @@ test('volver desde la conexión de Drive recupera la lista y sus controles',asyn
  ui.$('cancel-drive').events.click();await tick();await tick();
  assert.equal(ui.$('drive-setup').hidden,true);assert.equal(ui.$('library-list-view').hidden,false);
  assert.equal(ui.$('patient-list').children.length,1);assert.equal(ui.$('refresh-library').disabled,false);
+});
+test('usar ficha requiere coincidencia y cambiarla antes de copiar bloquea el texto anterior',async()=>{
+ let current={name:patient.name,rut:patient.rut};const ui=setup({context:()=>current});await ui.open();assert.equal(ui.$('use-current-patient').hidden,false);
+ await ui.$('use-current-patient').events.click();await tick();await tick();assert.equal(ui.$('summary-text').value,body);
+ current={name:'Otra Persona',rut:'22222222-2'};await ui.copy();assert.equal(ui.copies.length,0);assert.equal(ui.$('summary-text').value,'');assert.match(ui.$('summary-status').textContent,/ficha cambió/);
+});
+test('abrir expediente es una acción explícita, independiente de leer o copiar',async()=>{
+ const ui=setup({patients:[{...patient,openable:true}]});await ui.open();await ui.patient();
+ assert.equal(ui.requests.some(r=>r.type==='nexo.library.open'),false);assert.equal(ui.$('open-patient-folder').hidden,false);
+ await ui.$('open-patient-folder').events.click();assert.equal(ui.requests.some(r=>r.type==='nexo.library.open'),true);assert.equal(ui.copies.length,0);
 });

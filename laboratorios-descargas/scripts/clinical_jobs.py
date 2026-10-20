@@ -36,6 +36,7 @@ class PersistentLauncher:
         except BlockingIOError:self.owner.close();raise RuntimeError('Ya existe un lanzador para esta carpeta.')
         self.lock=threading.RLock();self.archive_lock=threading.Lock();self.payloads={};self.processes={};self.stop_event=threading.Event()
         self.wake=threading.Event();self.process_factory=process_factory;self.thread=None
+        self.library_nonce=secrets.token_urlsafe(32)
         self.repository = QueueStore(self.store, self.output)
         try:
             snapshot = self.repository.load()

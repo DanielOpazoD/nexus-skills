@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -76,6 +77,7 @@ class ClinicalLibrary:
     def __init__(self,root):self.root=Path(root)
 
     def _scan(self):
+        self._folders={}
         patients=self.root/RULES['patientsFolder']
         if not self.root.is_dir() or self.root.is_symlink() or not patients.is_dir() or patients.is_symlink():
             return [],{},0,False
@@ -114,7 +116,9 @@ class ClinicalLibrary:
                             references[ident]=(path,sha,folder,rut,name,status)
                         except (ValueError,OSError,ArchiveError,UnicodeError):issues+=1
                 if current and not documents:issues+=1
-                rows.append(dict(id=hashlib.sha256((rut+'\0'+folder.name).encode()).hexdigest(),name=name,rut=rut,documents=documents))
+                ident=hashlib.sha256((rut+'\0'+folder.name).encode()).hexdigest()
+                self._folders[ident]=folder
+                rows.append(dict(id=ident,name=name,rut=rut,documents=documents,openable=True))
             except (ValueError,OSError,ArchiveError,UnicodeError,AttributeError,TypeError):issues+=1
         # No escoger arbitrariamente entre dos carpetas con el mismo RUT.
         counts={}
@@ -140,3 +144,11 @@ class ClinicalLibrary:
         doc_name,doc_rut=document_identity(text,name)
         if sha!=expected or doc_rut!=rut or not same_name(doc_name,name):raise ValueError('El documento cambió durante la lectura.')
         return dict(id=ident,sha256=sha,text=text,status=status,rut=rut,name=name)
+
+    def open(self,ident,runner=None):
+        rows,_,_,_=self._scan()
+        if not any(row['id']==ident for row in rows):raise ValueError('Expediente no verificable.')
+        folder=self._folders[ident];target=folder/RULES['readingFolder']
+        if target.is_symlink():raise ValueError('Carpeta enlazada no admitida.')
+        (runner or subprocess.run)(['/usr/bin/open',str(target if target.is_dir() else folder)],check=True,timeout=5,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        return dict(opened=True)

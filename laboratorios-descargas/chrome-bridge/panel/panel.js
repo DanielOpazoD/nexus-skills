@@ -2,13 +2,15 @@
 const $=id=>document.getElementById(id),C=NexoLibraryCore,D=NexoDriveLibrary;
 const T=globalThis.NexoTransport;
 let activeView='request',provider=null,patients=[],selected=null,selectedDocument=null,sequence=0,loading=false;
+let contextSelection=false;
+const readContext=()=>T?T.bounded(bridge({type:'nexo.patient.context'})):bridge({type:'nexo.patient.context'});
 async function bridge(message){
   const response=await chrome.runtime.sendMessage(message);
   if(!response?.ok)throw Error(response?.error||'Biblioteca no disponible.');
   return response.result;
 }
 function clearSummary(){sequence++;selectedDocument=null;$('summary-text').value='';$('copy-summary').disabled=true;$('copy-status').textContent='';$('summary-status').textContent='';}
-function listView(){clearSummary();selected=null;loading=false;$('refresh-library').disabled=false;$('summary-view').hidden=true;$('library-list-view').hidden=false;$('drive-setup').hidden=true;}
+function listView(){clearSummary();selected=null;contextSelection=false;loading=false;$('refresh-library').disabled=false;$('summary-view').hidden=true;$('library-list-view').hidden=false;$('drive-setup').hidden=true;}
 function switchView(view,focus=false){
   if(activeView===view){if(focus)$('tab-'+view).focus();return;}
   if(activeView!==view)listView();activeView=view;
@@ -41,7 +43,7 @@ async function chooseProvider(){
     const handle=await D.savedHandle();
     if(handle && await handle.queryPermission({mode:'read'})==='granted')return new D.DriveLibrary(handle);
   }catch(_){/* El acceso local sigue disponible si falla IndexedDB. */}
-  return {list:()=>bridge({type:'nexo.library.list'}),read:(id,sha256)=>bridge({type:'nexo.library.read',id,sha256})};
+  const local={token:null,list:async()=>{const catalog=await bridge({type:'nexo.library.list'});local.token=catalog.openToken;return catalog;},read:(id,sha256)=>bridge({type:'nexo.library.read',id,sha256}),open:id=>bridge({type:'nexo.library.open',id,token:local.token})};return local;
 }
 async function refresh(){
   clearSummary();const request=sequence;
@@ -54,11 +56,13 @@ async function refresh(){
     for(const patient of catalog.patients){C.rut(patient.rut);if(typeof patient.name!=='string'||!Array.isArray(patient.documents))throw Error('Biblioteca pendiente de revisión.');}
     provider=next;patients=catalog.patients.sort((a,b)=>a.name.localeCompare(b.name,'es',{sensitivity:'base'}));loading=false;renderPatients();
     if(catalog.issues)$('library-status').textContent+=' · '+catalog.issues+' archivo(s) requieren revisión';
+    void suggestCurrentPatient(request);
   }catch(error){if(request===sequence){patients=[];provider=null;loading=false;renderPatients();$('library-status').textContent=error.message||'No se pudo cargar la biblioteca.';}}
   finally{if(request===sequence){loading=false;$('refresh-library').disabled=false;}}
 }
-function selectPatient(patient){
-  clearSummary();selected=patient;$('library-list-view').hidden=true;$('summary-view').hidden=false;
+function selectPatient(patient,fromContext=false){
+  clearSummary();selected=patient;contextSelection=fromContext;$('library-list-view').hidden=true;$('summary-view').hidden=false;
+  $('open-patient-folder').hidden=!(patient.folderUrl||patient.openable&&provider?.open);
   $('patient-name').textContent=patient.name;$('patient-rut').textContent=patient.rut;$('summary-date').textContent='';
   $('summary-version').replaceChildren();$('version-control').hidden=patient.documents.length<2;
   if(!patient.documents.length){$('summary-status').textContent='No hay un resumen TXT disponible para este paciente.';return;}
@@ -75,7 +79,7 @@ async function readSummary(document){
     if(result.id!==document.id || result.sha256!==document.sha256 || identity.rut!==patient.rut || !C.sameName(identity.name,patient.name))throw Error('La identidad del resumen no coincide.');
     selectedDocument={...document,status:result.status};$('summary-text').value=result.text;
     $('summary-date').textContent=[document.date?'Guardado '+document.date:'Archivo existente',document.referenceDate?'Referencia '+document.referenceDate:''].filter(Boolean).join(' · ');
-    $('summary-status').textContent=C.canCopy(selectedDocument)?'':result.status==='stale'?'Fuentes actualizadas · resumen pendiente de revisión.':'Archivo modificado · revisión pendiente.';
+    $('summary-status').textContent=C.canCopy(selectedDocument)?'':result.status==='stale'?'Documentos nuevos o distintos · resumen pendiente de revisión.':'Archivo modificado · revisión pendiente.';
     $('copy-summary').disabled=!C.canCopy(selectedDocument);
   }catch(error){if(turn===sequence){$('summary-text').value='';$('summary-status').textContent=error.message||'No se pudo leer el resumen.';$('copy-summary').disabled=true;}}
 }
@@ -85,6 +89,7 @@ $('copy-summary').addEventListener('click',async()=>{
   const document=selectedDocument,patient=selected,turn=sequence;
   if(!C.canCopy(document)||!patient)return;$('copy-summary').disabled=true;$('copy-status').textContent='Comprobando…';
   try{
+    if(contextSelection){const current=await readContext();if(turn!==sequence)return;if(!current.patient||C.rut(current.patient.rut)!==patient.rut||!C.sameName(current.patient.name,patient.name))throw Error('La ficha cambió. Vuelve a elegir al paciente.');}
     const result=await (T?T.bounded(provider.read(document.id,document.sha256)):provider.read(document.id,document.sha256));
     if(turn!==sequence || selected!==patient)return;
     const identity=C.documentIdentity(result.text,patient.name);
@@ -111,6 +116,27 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)listView();
 chrome.tabs?.onActivated?.addListener(()=>{if(activeView==='library')listView();});
 window.addEventListener('pagehide',clearSummary);
 if(new URLSearchParams(location.search).get('view')==='library')switchView('library');
+async function suggestCurrentPatient(turn){
+ $('use-current-patient').hidden=true;
+ try{const current=await readContext();if(turn!==sequence||activeView!=='library')return;
+  const found=patients.find(patient=>current.patient&&patient.rut===C.rut(current.patient.rut)&&C.sameName(patient.name,current.patient.name));
+  $('use-current-patient').hidden=!found;
+ }catch(_){/* La selección manual sigue disponible. */}
+}
+$('use-current-patient').addEventListener('click',async()=>{
+ const turn=sequence;
+ try{const current=await readContext();if(turn!==sequence||activeView!=='library')return;
+  const found=patients.find(patient=>current.patient&&patient.rut===C.rut(current.patient.rut)&&C.sameName(patient.name,current.patient.name));
+  if(!found)throw Error('La ficha cambió o no tiene un expediente identificado.');selectPatient(found,true);
+ }catch(error){$('library-status').textContent=error.message||'No se pudo identificar la ficha.';$('use-current-patient').hidden=true;}
+});
+$('open-patient-folder').addEventListener('click',async()=>{
+ const patient=selected,turn=sequence;if(!patient)return;
+ try{
+  if(patient.folderUrl){if(!/^https:\/\/drive\.google\.com\/drive\/folders\/[A-Za-z0-9_-]{10,200}$/.test(patient.folderUrl))throw Error('Enlace no verificable.');await chrome.tabs.create({url:patient.folderUrl});}
+  else await provider.open(patient.id);
+ }catch(_){if(turn===sequence)$('summary-status').textContent='No se pudo abrir el expediente.';}
+});
 let healthBusy=false;
 async function refreshWorker(){
  if(!T||healthBusy||document.hidden)return;healthBusy=true;

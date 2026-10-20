@@ -77,6 +77,9 @@ def documents():
 
 
 def generated_assets():
+    from package_extension import validate_files
+    extension=SKILL/'chrome-bridge'
+    validate_files({str(path.relative_to(extension)):path.read_bytes() for path in extension.rglob('*') if path.is_file()})
     from build_portable_form import build
     names = ('clinical_catalog.js', 'local_app.html', 'solicitud-examenes.html', 'solicitud-portatil.html')
     original = SKILL / 'assets'

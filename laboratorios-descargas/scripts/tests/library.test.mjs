@@ -54,3 +54,11 @@ test('controles antiguos identifican sin depender de un archivo nuevo',async()=>
  control.children['Estado de descargas - 20-10-2026.txt']=file('Estado de descargas - 20-10-2026.txt','Paciente: Paciente Ficticio\nRUT: 22222222-2\n');
  assert.equal((await new D.DriveLibrary(directory('Pacientes',{'Paciente Ficticio':p})).list()).patients.length,0);
 });
+test('el enlace de Drive exige identidad y un ID de carpeta válido, sin URL libre',async()=>{
+ const {NexoLibraryCore:C,NexoDriveLibrary:D}=setup(),p=patient();
+ const link={version:1,rut:'11111111-1',name:'Paciente Ficticio',folderId:'folder-fixture-123'};
+ assert.equal(C.folderUrl(link,{rut:'11111111-1',name:'Paciente Ficticio'}),'https://drive.google.com/drive/folders/folder-fixture-123');
+ for(const change of [{rut:'22222222-2'},{folderId:'https://evil.invalid/'},{name:'Otra Persona'}])assert.throws(()=>C.folderUrl({...link,...change},{rut:'11111111-1',name:'Paciente Ficticio'}));
+ p.children['Control y trazabilidad'].children['Carpeta Drive.json']=file('Carpeta Drive.json',JSON.stringify(link));
+ assert.match((await new D.DriveLibrary(directory('Pacientes',{'Paciente Ficticio':p})).list()).patients[0].folderUrl,/^https:\/\/drive.google.com\/drive\/folders\//);
+});

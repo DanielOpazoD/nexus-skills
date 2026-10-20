@@ -50,5 +50,9 @@
   }
   function matches(patient,query){const term=normalize(query);return !term || normalize(patient.name).includes(term) || normalize(patient.rut).includes(term);}
   function canCopy(document){return !!document && ['current','existing'].includes(document.status);}
-  root.NexoLibraryCore={normalize,sameName,rut,date,identity,documentIdentity,filenameDate,referenceDate,checksum,textFile,matches,canCopy};
+  function folderUrl(data,patient){
+    if(data?.version!==1||rut(data.rut)!==patient.rut||!sameName(data.name,patient.name)||typeof data.folderId!=='string'||!/^[A-Za-z0-9_-]{10,200}$/.test(data.folderId))throw Error('Enlace de expediente no verificable.');
+    return 'https://drive.google.com/drive/folders/'+data.folderId;
+  }
+  root.NexoLibraryCore={normalize,sameName,rut,date,identity,documentIdentity,filenameDate,referenceDate,checksum,textFile,matches,canCopy,folderUrl};
 })(globalThis);
