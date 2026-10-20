@@ -103,7 +103,7 @@ globalThis.ClinicalCatalog={"version":1,"packetVersion":4,"identity":{"minDigits
  }
  async function bounded(operation,signal,ms=6000){
   let timer,abort;
-  const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Drive tarda en responder. Vuelve a intentar.')),ms);abort=()=>reject(Error('Lectura cancelada.'));if(signal?.aborted)abort();else signal?.addEventListener('abort',abort,{once:true});});
+  const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Object.assign(Error('Drive tarda en responder. Vuelve a intentar.'),{code:'timeout',retryable:false})),ms);abort=()=>reject(Object.assign(Error('Lectura cancelada.'),{code:'cancelled',retryable:false}));if(signal?.aborted)abort();else signal?.addEventListener('abort',abort,{once:true});});
   try{return await Promise.race([operation,timeout]);}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
  }
  async function read(directory,name,signal){

@@ -351,3 +351,6 @@
 !/laboratorios-descargas/scripts/tests/patient_context.test.mjs
 !/laboratorios-descargas/scripts/tests/test_library_access.py
 !/laboratorios-descargas/scripts/tests/test_release_assets.py
+
+!/laboratorios-descargas/chrome-bridge/panel/connectivity.js
+!/laboratorios-descargas/scripts/tests/connectivity.test.mjs

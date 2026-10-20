@@ -52,7 +52,7 @@
   class DriveLibrary{
     constructor(handle){if(handle?.kind!=='directory'||handle.name!==R.patientsFolder)throw Error('Selecciona la carpeta «Pacientes».');this.handle=handle;this.references=new Map();this.patientFolders=new Map();}
     async list(){
-      if(await this.handle.queryPermission({mode:'read'})!=='granted')throw Error('Vuelve a conectar tu carpeta Pacientes.');
+      if(await this.handle.queryPermission({mode:'read'})!=='granted')throw Object.assign(Error('Vuelve a conectar tu carpeta Pacientes.'),{code:'permission'});
       const patients=[],references=new Map(),folders=new Map();let issues=0;
       for await(const [directoryName,handle] of this.handle.entries()){
         if(handle.kind!=='directory' || directoryName.startsWith('.'))continue;
@@ -113,7 +113,7 @@
     }
     async read(id,sha256){
       // Resolver la ruta otra vez: un handle antiguo no acredita un archivo movido.
-      if(await this.handle.queryPermission({mode:'read'})!=='granted')throw Error('Vuelve a conectar tu carpeta Pacientes.');
+      if(await this.handle.queryPermission({mode:'read'})!=='granted')throw Object.assign(Error('Vuelve a conectar tu carpeta Pacientes.'),{code:'permission'});
       const reference=this.references.get(id);
       if(!reference || reference.sha256!==sha256)throw Error('El resumen cambió. Actualiza la lista.');
       const directory=await folder(this.handle,reference.directoryName),patient=await folderIdentity(directory);

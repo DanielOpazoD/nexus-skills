@@ -107,7 +107,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   if(['nexo.library.list','nexo.library.read','nexo.library.open','nexo.panel.tab','nexo.worker.health'].includes(message?.type)){
     if(!ownPanel(sender))return false;
-    (async()=>{try{sendResponse({ok:true,result:await panelRequest(message)});}catch(_){sendResponse({ok:false,error:'Abre Nexo en este Mac o conecta tu carpeta Pacientes de Drive.'});}})();
+    (async()=>{try{sendResponse({ok:true,result:await panelRequest(message)});}catch(error){const code=['unavailable','timeout','permission','integrity','incompatible'].includes(error.code)?error.code:'unknown';sendResponse({ok:false,code,retryable:message.type!=='nexo.library.open'&&error.retryable===true&&['unavailable','timeout'].includes(code),error:'Abre Nexo en este Mac o conecta tu carpeta Pacientes de Drive.'});}})();
     return true;
   }
   if (message?.type === 'labs.agenda') {
