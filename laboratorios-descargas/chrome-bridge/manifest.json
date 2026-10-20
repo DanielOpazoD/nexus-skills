@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nexo · Consulta clínica",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "minimum_chrome_version": "116",
   "description": "Solicitudes clínicas, seguimiento del Mini y biblioteca de resúmenes verificados junto a Eloísa.",
   "permissions": [

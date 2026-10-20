@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id),C=NexoLibraryCore,D=NexoDriveLibrary;
 const T=globalThis.NexoTransport;
 let activeView='request',provider=null,patients=[],selected=null,selectedDocument=null,sequence=0,loading=false;
-let contextSelection=false;
+let contextSelection=false,reconnectHandle=null;
 const readContext=()=>T?T.bounded(bridge({type:'nexo.patient.context'})):bridge({type:'nexo.patient.context'});
 async function bridge(message){
   const response=await chrome.runtime.sendMessage(message);
@@ -32,7 +32,8 @@ function renderPatients(){
   const fragment=document.createDocumentFragment();
   for(const patient of matching.slice(0,100)){
     const li=document.createElement('li'),button=document.createElement('button'),name=document.createElement('strong'),detail=document.createElement('small');
-    button.type='button';name.textContent=patient.name;detail.textContent=patient.rut+(patient.documents.length?'':' · Sin resumen TXT');
+    button.type='button';name.textContent=patient.name;const dates=patient.documents.map(d=>d.date).filter(Boolean).sort((a,b)=>b.split('-').reverse().join('').localeCompare(a.split('-').reverse().join('')));
+    detail.textContent=patient.rut+(patient.documents.length?(dates[0]?' · '+dates[0]:''):' · Sin resumen TXT');
     button.append(name,detail);button.addEventListener('click',()=>selectPatient(patient));li.append(button);fragment.append(li);
   }
   $('patient-list').replaceChildren(fragment);
@@ -41,9 +42,9 @@ function renderPatients(){
 async function chooseProvider(){
   try{
     const handle=await D.savedHandle();
-    if(handle && await handle.queryPermission({mode:'read'})==='granted')return new D.DriveLibrary(handle);
+    if(handle && await handle.queryPermission({mode:'read'})==='granted'){const drive=new D.DriveLibrary(handle);drive.kind='drive';return drive;}
   }catch(_){/* El acceso local sigue disponible si falla IndexedDB. */}
-  const local={token:null,list:async()=>{const catalog=await bridge({type:'nexo.library.list'});local.token=catalog.openToken;return catalog;},read:(id,sha256)=>bridge({type:'nexo.library.read',id,sha256}),open:id=>bridge({type:'nexo.library.open',id,token:local.token})};return local;
+  const local={kind:'mini',token:null,list:async()=>{const catalog=await bridge({type:'nexo.library.list'});local.token=catalog.openToken;return catalog;},read:(id,sha256)=>bridge({type:'nexo.library.read',id,sha256}),open:id=>bridge({type:'nexo.library.open',id,token:local.token})};return local;
 }
 async function refresh(){
   clearSummary();const request=sequence;
@@ -54,10 +55,10 @@ async function refresh(){
     if(!catalog.available)throw Error('Conecta tu carpeta Pacientes de Drive.');
     if(catalog.version!==1 || !Array.isArray(catalog.patients))throw Error('Biblioteca no compatible.');
     for(const patient of catalog.patients){C.rut(patient.rut);if(typeof patient.name!=='string'||!Array.isArray(patient.documents))throw Error('Biblioteca pendiente de revisión.');}
-    provider=next;patients=catalog.patients.sort((a,b)=>a.name.localeCompare(b.name,'es',{sensitivity:'base'}));loading=false;renderPatients();
+    provider=next;$('library-origin').textContent=next.kind==='drive'?'Drive · carpeta sincronizada':'Mini · archivo local';$('connect-drive').textContent=next.kind==='drive'?'Cambiar conexión de Drive':'Conectar carpeta de Drive';patients=catalog.patients.sort((a,b)=>a.name.localeCompare(b.name,'es',{sensitivity:'base'}));loading=false;renderPatients();
     if(catalog.issues)$('library-status').textContent+=' · '+catalog.issues+' archivo(s) requieren revisión';
     void suggestCurrentPatient(request);
-  }catch(error){if(request===sequence){patients=[];provider=null;loading=false;renderPatients();$('library-status').textContent=error.message||'No se pudo cargar la biblioteca.';}}
+  }catch(error){if(request===sequence){patients=[];provider=null;$('library-origin').textContent='';loading=false;renderPatients();$('library-status').textContent=error.message||'No se pudo cargar la biblioteca.';}}
   finally{if(request===sequence){loading=false;$('refresh-library').disabled=false;}}
 }
 function selectPatient(patient,fromContext=false){
@@ -101,18 +102,33 @@ $('copy-summary').addEventListener('click',async()=>{
   finally{if(turn===sequence)$('copy-summary').disabled=!C.canCopy(selectedDocument);}
 });
 $('open-full').addEventListener('click',async()=>{try{await bridge({type:'nexo.panel.tab',view:activeView});}catch(_){$('library-status').textContent='No se pudo abrir la pestaña.';}});
-$('connect-drive').addEventListener('click',()=>{listView();$('library-list-view').hidden=true;$('drive-setup').hidden=false;});
+$('connect-drive').addEventListener('click',async()=>{
+  listView();const turn=sequence;reconnectHandle=null;$('reconnect-drive').hidden=true;$('setup-status').textContent='';$('library-list-view').hidden=true;$('drive-setup').hidden=false;
+  try{const handle=await D.savedHandle();if(turn!==sequence)return;reconnectHandle=handle||null;$('reconnect-drive').hidden=!handle;}
+  catch(_){/* Se puede seleccionar otra carpeta si no se recupera el permiso. */}
+});
+$('reconnect-drive').addEventListener('click',async()=>{
+  if(!reconnectHandle)return;const turn=sequence;
+  try{
+    const permission=await reconnectHandle.requestPermission({mode:'read'});
+    if(turn!==sequence)return;
+    if(permission!=='granted')throw Error('Permiso pendiente. Puedes seleccionar otra carpeta.');
+    listView();void refresh();
+  }catch(error){if(turn===sequence)$('setup-status').textContent=error.message||'No se pudo reconectar la carpeta.';}
+});
 $('cancel-drive').addEventListener('click',()=>{listView();void refresh();});
 $('choose-drive').addEventListener('click',async()=>{
+  const turn=sequence;
   try{
     if(!globalThis.showDirectoryPicker)throw Error('Abre Nexo en una pestaña para seleccionar la carpeta.');
     const handle=await showDirectoryPicker({id:'nexo-patients',mode:'read'});
+    if(turn!==sequence)return;
     if(handle.name!==ClinicalCatalog.library.patientsFolder)throw Error('Selecciona la carpeta «Pacientes».');
-    await D.savedHandle(handle);$('setup-status').textContent='Carpeta conectada';listView();void refresh();
-  }catch(error){if(error.name!=='AbortError')$('setup-status').textContent=error.name==='SecurityError'?'Abre Nexo en una pestaña para seleccionar la carpeta.':error.message||'No se pudo conectar la carpeta.';}
+    await D.savedHandle(handle);if(turn!==sequence)return;$('setup-status').textContent='Carpeta conectada';listView();void refresh();
+  }catch(error){if(turn===sequence&&error.name!=='AbortError')$('setup-status').textContent=error.name==='SecurityError'?'Abre Nexo en una pestaña para seleccionar la carpeta.':error.message||'No se pudo conectar la carpeta.';}
 });
 $('forget-drive').addEventListener('click',async()=>{try{await D.savedHandle(null);listView();void refresh();}catch(_){$('setup-status').textContent='No se pudo desconectar la carpeta.';}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)listView();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)listView();else if(activeView==='library')void refresh();});
 chrome.tabs?.onActivated?.addListener(()=>{if(activeView==='library')listView();});
 window.addEventListener('pagehide',clearSummary);
 if(new URLSearchParams(location.search).get('view')==='library')switchView('library');

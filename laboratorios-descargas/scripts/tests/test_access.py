@@ -21,6 +21,13 @@ class Fake:
   return [exam()]
  def download(self,e):return pdf(self.source,e['id'])
 class Tests(unittest.TestCase):
+ def test_exalab_known_empty_table_is_not_a_session_error(self):
+  backend=l.load_backend('exalab')
+  header=['Num','N Examen','Fecha','Hora','Rut','Nombre','Laboratorio/Procedencia','Examenes']
+  html='<h1>Folios Asociados</h1><table><thead><tr>'+''.join('<th>'+h+'</th>' for h in header)+'</tr></thead></table><table><tbody></tbody></table>'
+  self.assertEqual(backend.parse_exams(html,RUT),[])
+  for changed in (html+'<div>Error de sesión</div>',html.replace('N Examen','Nueva columna'),html.replace('<tbody></tbody>','<tbody><tr><td>dato incompleto</td></tr></tbody>')):
+   with self.assertRaises(backend.ExalabError):backend.parse_exams(changed,RUT)
  def test_reading_copy_is_newest_first_and_named_by_included_dates(self):
   class Visits(Fake):
    def search(self,rut):

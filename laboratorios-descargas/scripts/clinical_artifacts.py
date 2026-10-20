@@ -36,6 +36,61 @@ def inside(path, root):
     return path.resolve()
 
 
+def identity_review_path(job, rut, base_revision):
+    if canonical_rut(rut)!=rut or not isinstance(base_revision,str) or not re.fullmatch(r'[0-9a-f]{64}',base_revision):
+        raise ValueError('Identidad o revisión inválida.')
+    return Path(job['work_output'])/'.entregas'/'identidades'/(rut+'-'+base_revision+'.json')
+
+
+def check_identity_review(job, review, context, names):
+    allowed={'version','jobId','rut','evidenceRevision','name','reason','confirmed','anchor'}
+    if (not isinstance(review,dict) or set(review)!=allowed or type(review['version']) is not int or review['version']!=1 or
+        review['jobId']!=job['id'] or review['rut']!=context['rut'] or review['confirmed'] is not True or
+        review['evidenceRevision']!=fingerprint(context) or not isinstance(review['reason'],str) or
+        not 30<=len(review['reason'])<=3000):raise ValueError('Revisión de identidad inválida o desactualizada.')
+    if not isinstance(review['name'],str):raise ValueError('Nombre revisado inválido.')
+    try:name=clean_name(review['name'])
+    except ArchiveError:raise ValueError('Nombre revisado inválido.') from None
+    if not any(name_key(name)==name_key(candidate) for candidate in names):
+        raise ValueError('El nombre elegido no está en la evidencia verificada.')
+    anchor=review['anchor']
+    if (not isinstance(anchor,dict) or set(anchor)!={'path','sha256','pages'} or
+        not isinstance(anchor['pages'],list) or len(anchor['pages'])!=1 or
+        type(anchor['pages'][0]) is not int or anchor['pages'][0]!=1):
+        raise ValueError('Falta la primera página identificatoria.')
+    reference=next((f for f in context['files'] if f['path']==anchor['path'] and f['sha256']==anchor['sha256']),None)
+    if not reference:raise ValueError('La referencia identificatoria no pertenece a esta evidencia.')
+    path=inside(reference['path'],job['work_output'])
+    if path.suffix.lower()!='.pdf' or digest(path)!=reference['sha256']:
+        raise ValueError('Documento identificatorio modificado.')
+    from pypdf import PdfReader
+    text=PdfReader(path).pages[0].extract_text() or ''
+    pair=re.search(r'^Paciente:\s*([^\n]+)\n(?:RUT|RUN):\s*([\d.]+-[\dKk])(?:\s|$)',text,re.M|re.I)
+    if not pair or canonical_rut(pair[2])!=context['rut'] or name_key(pair[1])!=name_key(name):
+        raise ValueError('El encabezado del paciente no acredita el nombre y RUT revisados.')
+    return name
+
+
+def record_identity_review(job, submission):
+    snapshot=evidence(job,submission.get('rut'))
+    if snapshot['name']:
+        path=identity_review_path(job,submission['rut'],submission.get('evidenceRevision',''))
+        if path.is_file() and not path.is_symlink() and json.loads(path.read_text())==submission:
+            return {'name':snapshot['name'],'reused':True}
+        raise ValueError('La identidad ya está resuelta; no sobrescribirla.')
+    names=[row['patient_name'] for row in job['summary'] if row.get('rut')==submission['rut'] and
+           row.get('file_manifest') and row.get('patient_name') not in (None,'Nombre no disponible')]
+    context={k:v for k,v in snapshot.items() if k!='revision'}
+    name=check_identity_review(job,submission,context,names)
+    path=identity_review_path(job,submission['rut'],snapshot['revision'])
+    if path.is_symlink() or path.parent.is_symlink() or path.parent.parent.is_symlink():
+        raise ValueError('Ruta de revisión enlazada; conservar para inspección.')
+    if path.exists():
+        if json.loads(path.read_text())!=submission:raise ValueError('Existe otra revisión; conservarla sin sobrescribir.')
+    else:atomic_json(path,submission)
+    return {'name':name,'reused':False}
+
+
 def evidence(job, rut):
     """Toda evidencia del paciente y cobertura; cambia incluso sin nuevos PDF."""
     if rut not in job['ruts']:
@@ -69,6 +124,16 @@ def evidence(job, rut):
                                      'freshness':r.get('freshness'), 'errors':r.get('errors', [])} for r in rows],
                                    key=lambda r:r['source']),
                    files=sorted(files, key=lambda f:(f['source'], f['path'], f['sha256'])))
+    if name is None and names:
+        path=identity_review_path(job,rut,fingerprint(context))
+        try:
+            if path.parent.is_symlink() or path.parent.parent.is_symlink() or path.stat().st_size>65536:raise ValueError()
+            inside(path,job['work_output'])
+            from clinical_request import decode_json
+            review=decode_json(path.read_text())
+            context['name']=check_identity_review(job,review,context,list(names.values()))
+            context['identityReview']=fingerprint(review)
+        except (OSError,ValueError,KeyError,TypeError,ArchiveError):pass
     return dict(context, revision=fingerprint(context))
 
 

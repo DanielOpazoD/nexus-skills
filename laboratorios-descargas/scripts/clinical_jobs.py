@@ -422,6 +422,15 @@ class PersistentLauncher:
             self._archive_once(job)
             with self.lock:return {'key':result['key'],'reused':result['reused'],'artifacts':states(job)}
 
+    def review_identity(self,submission):
+        from clinical_artifacts import record_identity_review
+        with self.lock:
+            job=self.jobs.get(submission.get('jobId'))
+            if not job:raise ValueError('Solicitud no encontrada.')
+            if job['status'] in ('running','cancelling'):raise ValueError('Espera a que termine la descarga.')
+            self._review_status(job)
+            return record_identity_review(job,submission)
+
     def history(self):
         with self.lock:return [{'id':j['id'],'status':j['status'],'started_at':j['started_at'],'sources':j['selected'],'patients':len(j['ruts']),'delivery':delivery_state(j)} for j in reversed(list(self.jobs.values()))]
 

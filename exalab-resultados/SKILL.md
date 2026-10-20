@@ -17,6 +17,8 @@ Modo preferido: **HTTP directo** mediante el cliente Python tras autenticar en C
 
 En la interfaz, consultar y esperar a que termine “Espere por favor”. En “Folios Asociados”, verificar paciente/fecha/folio. “Último” exige comparar fechas. Abrir el número de examen y descargar el PDF incrustado. Cada PDF corresponde a un folio; un número de orden interno puede ser diferente: verificar RUT y fecha/hora contra la lista autenticada y el enlace obtenido para ese folio.
 
+Una sesión autenticada puede devolver «Folios Asociados» con la cabecera estable y una tabla sin filas, sin mensaje textual de ausencia. Ese formato exacto significa listado vacío; no es sesión vencida. HTML desconocido, error, carga en curso o filas incompletas siguen pendientes, no se convierten en ausencia de resultados.
+
 ## Ejecución
 
 Preferir el unificado para avance/reanudación. Antes del lote comprueba por HTTP que aparece el buscador autenticado; si falta, clasifica sesión pendiente y continúa las otras fuentes. La recuperación está en [continuidad](../laboratorios-descargas/references/continuidad.md). Antes de usar el [cliente directo](scripts/exalab_download.py), su [puente](scripts/exalab_chrome_bridge.mjs) o diagnosticar navegación, leer [cliente directo](references/cliente-directo.md).
