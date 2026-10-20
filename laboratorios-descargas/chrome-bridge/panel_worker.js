@@ -16,7 +16,7 @@ async function panelRequest(message){
     if(!['request','library'].includes(message.view))throw Error('Vista no válida.');
     await chrome.tabs.create({url:chrome.runtime.getURL('panel/index.html')+'?view='+message.view});return {opened:true};
   }
-  let path='/api/library';
+  let path=message.type==='nexo.worker.health'?'/api/health':'/api/library';
   if(message.type==='nexo.library.read'){
     if(!/^[a-f0-9]{64}$/.test(message.id)||!/^[a-f0-9]{64}$/.test(message.sha256))throw Error('Documento no válido.');
     path+='/read?id='+encodeURIComponent(message.id)+'&sha256='+encodeURIComponent(message.sha256);

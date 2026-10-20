@@ -341,3 +341,6 @@
 !/laboratorios-descargas/scripts/service_manager.py
 !/laboratorios-descargas/scripts/tests/test_service_transport.py
 !/laboratorios-descargas/references/servicio-mini.md
+!/laboratorios-descargas/assets/drive_status.js
+!/laboratorios-descargas/chrome-bridge/request/drive_status.js
+!/laboratorios-descargas/scripts/tests/transport_ui.test.mjs

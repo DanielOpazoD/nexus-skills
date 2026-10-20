@@ -52,7 +52,7 @@ def build(assets=None):
 </main></body></html>'''
     html = html.replace('<button id="run" type="submit" disabled>Agregar solicitud <span aria-hidden="true">→</span></button>', '<div class="portable-actions"><button type="button" class="text-button" id="send-drive" disabled>Enviar a Drive</button><button type="button" class="text-button" id="save-request" disabled>Guardar solicitud</button><button id="run" type="submit" disabled>Copiar para Codex <span aria-hidden="true">→</span></button></div>')
     # The extension uses the same controls with external scripts (MV3 CSP).
-    names = ('clinical_catalog.js','request_form.js','request_packet.js','portable_app.js','agenda_core.js','agenda_ui.js')
+    names = ('clinical_catalog.js','drive_status.js','request_form.js','request_packet.js','portable_app.js','agenda_core.js','agenda_ui.js')
     extension = assets.parent / 'chrome-bridge'
     target = extension / 'request'
     target.mkdir(parents=True, exist_ok=True)

@@ -67,6 +67,52 @@ body.nexo-embedded{background:#fff;font-size:13px}.nexo-embedded .topbar,.nexo-e
 </main><script>// Generado desde clinical_catalog.json; ejecutar build_portable_form.py.
 globalThis.ClinicalCatalog={"version":1,"packetVersion":4,"identity":{"minDigits":7,"maxDigits":8,"maxPatients":200},"library":{"version":1,"patientsFolder":"Pacientes","readingFolder":"Lectura y entregas","controlFolder":"Control y trazabilidad","identityFilename":"Identidad del paciente.txt","manifestFilename":"Entregas vigentes.json","maxTextBytes":262144,"maxPatients":1000,"maxDocuments":100,"filenamePatterns":["^([0-9]{2}-[0-9]{2}-[0-9]{4}) Resumen antecedentes(?: - .+)?\\.txt$","^Resumen de antecedentes(?: - ([0-9]{2}-[0-9]{2}-[0-9]{4})(?: - .+)?)?\\.txt$"]},"sources":{"syslab":"Syslab","exalab":"Exalab","eloisa":"Eloísa Ambulatorio","mmrad":"MMRAD","his":"HIS","rayen":"Eloísa Hospitalizados","email":"Correo"},"periods":[{"value":"30d","label":"Últimos 30 días","short":"30 días","stop":"30 d","days":30},{"value":"3m","label":"Últimos 3 meses","short":"3 meses","stop":"3 m","months":3},{"value":"6m","label":"Últimos 6 meses","short":"6 meses","stop":"6 m","months":6},{"value":"1y","label":"Último año","short":"1 año","stop":"1 a","months":12},{"value":"2y","label":"Últimos 2 años","short":"2 años","stop":"2 a","months":24},{"value":"5y","label":"Últimos 5 años","short":"5 años","stop":"5 a","months":60},{"value":"10y","label":"Últimos 10 años","short":"10 años","stop":"10 a","months":120},{"value":"latest","label":"Último registro","short":"Último"}],"content":{"eloisa":[{"id":"medical","label":"Evoluciones médicas","default":true},{"id":"other","label":"Otros profesionales","default":false},{"id":"prescriptions","label":"Recetas","default":true},{"id":"referrals","label":"Interconsultas","default":true},{"id":"attachments","label":"Documentos adjuntos","default":true,"since":4}],"rayen":[{"id":"epicrisis","label":"Epicrisis médica","default":true},{"id":"record","label":"Ficha clínica completa","default":false}],"mmrad":[{"id":"ct_reports","label":"Informes TAC","default":true,"since":4}]},"mmrad":{"imageTypes":["radiographs","ultrasounds"],"defaultImageTypes":["radiographs"],"excludeEchocardiography":true},"delivery":{"version":3,"baseline":{"id":"antecedentes","required":true,"skill":"resumen-antecedentes","mode":"codex","filename":"{date} Resumen antecedentes.txt","supportFilename":"{date} Sustento Resumen antecedentes.txt"},"models":[{"id":"documents","label":"Sin formato adicional","version":2,"template_status":"not_required"},{"id":"epicrisis","label":"Epicrisis","version":1,"template_status":"pending"},{"id":"telemedicina-reumatologia","label":"Telemedicina · Reumatología","version":1,"template_status":"available","skill":"telereumatologia"},{"id":"telemedicina-gastroenterologia","label":"Telemedicina · Gastroenterología","version":1,"template_status":"pending"},{"id":"evolucion-ambulatoria","label":"Evolución · Eloísa ambulatoria","version":1,"template_status":"pending"},{"id":"evolucion-hospitalizados","label":"Evolución · Hospitalizados","version":1,"template_status":"pending"},{"id":"custom","label":"Libre","version":1,"template_status":"not_required"}]}};
 
+/* Protocolo de estado y conexión a Drive; nunca guarda RUT ni texto clínico. */
+(function(root){
+ 'use strict';
+ const phases={received:'Recibida por el Mini',downloading:'Descargando',documents_partial:'Documentos disponibles · parcial',documents_ready:'Documentos disponibles',summary_ready:'Resumen preparado',cancelled:'Cancelada · documentos conservados',attention:'Requiere atención'};
+ function instant(value){const n=typeof value==='string'?Date.parse(value):NaN;if(!Number.isFinite(n))throw Error('Fecha de estado no válida.');return n;}
+ function worker(data,now=Date.now()){
+  if(data?.version!==1||data.kind!=='nexo-worker-status'||data.role!=='mac-mini'||!['ready','attention','stopped'].includes(data.status))throw Error('Estado del Mini no compatible.');
+  const observed=instant(data.observedAt),expires=instant(data.expiresAt);
+  if(observed>now+60000)return {status:'unknown',label:'Hora del Mini por revisar'};
+  if(expires<observed||expires-observed>90000)throw Error('Vigencia no válida.');
+  if(expires<=now||data.status==='stopped')return {status:'stale',label:'Sin señal reciente del Mini'};
+  return {status:data.status,label:data.status==='ready'?'Mini disponible':'Mini requiere atención'};
+ }
+ function progress(data,order,now=Date.now()){
+  if(data?.version!==1||data.kind!=='nexo-request-progress'||data.id!==order.id||data.sha256!==order.sha256||!phases[data.status])throw Error('Avance de otra solicitud o no compatible.');
+  const source=data.sourceCounts,summary=data.summary;
+  const count=n=>Number.isSafeInteger(n)&&n>=0;
+  if(!source||!summary||![source.total,source.completed,source.pending,summary.total,summary.ready,data.fileCount].every(count)||source.total!==order.sources||summary.total!==order.patients||source.completed+source.pending!==source.total||summary.ready>summary.total)throw Error('Conteos de avance no válidos.');
+  if(!['complete','partial','pending'].includes(data.archive?.copy)||!['confirmed','pending'].includes(data.archive?.sync))throw Error('Archivo no compatible.');
+  const observed=instant(data.observedAt);if(observed>now+60000)throw Error('Hora de avance por revisar.');
+  const stale=now-observed>90000;
+  let label=phases[data.status];
+  if(data.status==='documents_ready'&&!data.fileCount)label='Fuentes consultadas · sin documentos';
+  if(data.status==='summary_ready'&&summary.ready!==summary.total)throw Error('Resumen aún pendiente.');
+  if(data.status==='documents_ready'&&source.pending)throw Error('Fuentes aún pendientes.');
+  if(data.status==='summary_ready'&&source.pending)label+=' · fuentes pendientes';
+  if(['summary_ready','documents_ready','documents_partial'].includes(data.status)&&data.archive.sync!=='confirmed')label+=' · Drive por confirmar';
+  return {status:data.status,label:(stale?'Último estado: ':'')+label,stale};
+ }
+ async function connection(key,value){
+  if(key!=='inbox')throw Error('Conexión no válida.');
+  const db=await new Promise((resolve,reject)=>{const req=indexedDB.open('nexo-connections',1);req.onupgradeneeded=()=>req.result.createObjectStore('handles');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(Error('No se pudo recordar la conexión.'));req.onblocked=()=>reject(Error('Cierra otras ventanas de Nexo.'));});
+  try{return await new Promise((resolve,reject)=>{const tx=db.transaction('handles',value===undefined?'readonly':'readwrite'),store=tx.objectStore('handles');const req=value===undefined?store.get(key):value===null?store.delete(key):store.put(value,key);let result;req.onsuccess=()=>result=req.result;tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(Error('No se pudo guardar la conexión.'));});}finally{db.close();}
+ }
+ async function bounded(operation,signal,ms=6000){
+  let timer,abort;
+  const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Drive tarda en responder. Vuelve a intentar.')),ms);abort=()=>reject(Error('Lectura cancelada.'));if(signal?.aborted)abort();else signal?.addEventListener('abort',abort,{once:true});});
+  try{return await Promise.race([operation,timeout]);}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
+ }
+ async function read(directory,name,signal){
+  return bounded((async()=>{const handle=await directory.getFileHandle(name),file=await handle.getFile();if(file.size>16384)throw Error('Estado demasiado grande.');return JSON.parse(await file.text());})(),signal);
+ }
+ function pause(ms,signal){return new Promise(resolve=>{let timer;const done=()=>{clearTimeout(timer);signal?.removeEventListener('abort',done);resolve();};timer=setTimeout(done,ms);if(signal?.aborted)done();else signal?.addEventListener('abort',done,{once:true});});}
+ root.NexoTransport={worker,progress,connection,bounded,read,pause};
+})(globalThis);
+
 const $ = id => document.getElementById(id);
 const form = $('request-form');
 if(new URLSearchParams(location.search).get('embedded')==='1')document.body.classList.add('nexo-embedded');
@@ -289,6 +335,7 @@ function requestSelection() {
 })(globalThis);
 
 let prepared = null;
+let trackingAbort=null;
 const requestTracker = ClinicalRequest.tracker();
 function prepareRequest() {
   prepared = requestTracker.prepare(requestSelection());
@@ -298,6 +345,7 @@ function prepareRequest() {
   return text;
 }
 function clearPreparedView() {
+  trackingAbort?.abort();trackingAbort=null;
   $('copy-status').textContent = '';
   $('request-text').value = '';
   $('request-preview').open = false;
@@ -356,30 +404,38 @@ async function writeDriveRequest(directory, packet) {
   await marker.write(digest+'\n');await marker.close();
   return digest;
 }
-async function awaitDriveReceipt(directory, packet, digest) {
-  for (let attempt=0;attempt<40;attempt++) {
-    await new Promise(resolve=>setTimeout(resolve,3000));
+async function awaitDriveReceipt(directory, packet, digest, signal) {
+  const order={id:packet.id,sha256:digest,patients:packet.request.ruts.length,sources:packet.request.source.split(',').length};
+  for (let attempt=0;attempt<200&&!signal.aborted;attempt++) {
+    await NexoTransport.pause(3000,signal);
+    if(signal.aborted||prepared?.id!==packet.id)return;
     try {
-      const acuses = await directory.getDirectoryHandle('acuses');
-      const file = await acuses.getFileHandle(`acuse-${packet.id}.json`);
-      const receipt = JSON.parse(await (await file.getFile()).text());
-      if (receipt.sha256 !== digest) continue;
+      const acuses = await NexoTransport.bounded(directory.getDirectoryHandle('acuses'),signal);
+      const receipt = await NexoTransport.read(acuses,`acuse-${packet.id}.json`,signal);
+      if (receipt.id!==packet.id || receipt.sha256 !== digest) continue;
       if (prepared?.id !== packet.id) return;
-      $('copy-status').textContent = receipt.status === 'imported'
-        ? 'Recibida por el Mac mini e importada en la cola.'
-        : 'El Mac mini rechazó la solicitud: '+(receipt.error || 'revisa el archivo.');
-      return;
+      if(receipt.status==='rejected'){$('copy-status').textContent='El Mini rechazó la solicitud: '+(receipt.error||'revisa el archivo.');return;}
+      if(receipt.status!=='imported')continue;
+      $('copy-status').textContent='Recibida por el Mini';
+      try{
+        const state=NexoTransport.progress(await NexoTransport.read(acuses,`progreso-${packet.id}.json`,signal),order);
+        if(signal.aborted||prepared?.id!==packet.id)return;
+        $('copy-status').textContent=state.label;
+        if(['summary_ready','cancelled'].includes(state.status))return;
+      }catch(error){if(signal.aborted)return;if(error.name!=='NotFoundError')$('copy-status').textContent='Recibida · avance por confirmar';}
     } catch (error) { if (error.name !== 'NotFoundError' && !(error instanceof SyntaxError)) break; }
   }
-  if (prepared?.id === packet.id) $('copy-status').textContent = 'Solicitud guardada en Drive; acuse del Mac mini aún pendiente.';
+  if (!signal.aborted&&prepared?.id === packet.id) $('copy-status').textContent+=' · seguimiento en pausa';
 }
 $('send-drive').addEventListener('click',async () => {
   try {
     const packet = requestTracker.prepare(requestSelection());prepared = packet;
     const directory = await globalThis.showDirectoryPicker({id:'nexo-drive-inbox',mode:'readwrite'});
     const digest = await writeDriveRequest(directory,packet);
+    try{await NexoTransport.connection('inbox',directory);}catch(_){/* El envío no depende de recordar la carpeta. */}
+    trackingAbort?.abort();trackingAbort=new AbortController();
     $('copy-status').textContent = 'Solicitud guardada en Drive; esperando acuse del Mac mini.';
-    void awaitDriveReceipt(directory,packet,digest);
+    void awaitDriveReceipt(directory,packet,digest,trackingAbort.signal);
   } catch (error) {
     if (error.name !== 'AbortError') displayRequestError(error);
   }
@@ -389,6 +445,7 @@ $('request-preview').addEventListener('toggle',() => {
   try { prepareRequest(); } catch (cause) { $('request-text').value = '';displayRequestError(cause); }
 });
 updatePeriod();updateFields();clearPreparedView();
+window.addEventListener('pagehide',()=>trackingAbort?.abort());
 
 $('new-request').addEventListener('click',() => {
   requestTracker.reset();prepared = null;clearPreparedView();

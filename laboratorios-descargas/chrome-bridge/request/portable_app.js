@@ -1,4 +1,5 @@
 let prepared = null;
+let trackingAbort=null;
 const requestTracker = ClinicalRequest.tracker();
 function prepareRequest() {
   prepared = requestTracker.prepare(requestSelection());
@@ -8,6 +9,7 @@ function prepareRequest() {
   return text;
 }
 function clearPreparedView() {
+  trackingAbort?.abort();trackingAbort=null;
   $('copy-status').textContent = '';
   $('request-text').value = '';
   $('request-preview').open = false;
@@ -66,30 +68,38 @@ async function writeDriveRequest(directory, packet) {
   await marker.write(digest+'\n');await marker.close();
   return digest;
 }
-async function awaitDriveReceipt(directory, packet, digest) {
-  for (let attempt=0;attempt<40;attempt++) {
-    await new Promise(resolve=>setTimeout(resolve,3000));
+async function awaitDriveReceipt(directory, packet, digest, signal) {
+  const order={id:packet.id,sha256:digest,patients:packet.request.ruts.length,sources:packet.request.source.split(',').length};
+  for (let attempt=0;attempt<200&&!signal.aborted;attempt++) {
+    await NexoTransport.pause(3000,signal);
+    if(signal.aborted||prepared?.id!==packet.id)return;
     try {
-      const acuses = await directory.getDirectoryHandle('acuses');
-      const file = await acuses.getFileHandle(`acuse-${packet.id}.json`);
-      const receipt = JSON.parse(await (await file.getFile()).text());
-      if (receipt.sha256 !== digest) continue;
+      const acuses = await NexoTransport.bounded(directory.getDirectoryHandle('acuses'),signal);
+      const receipt = await NexoTransport.read(acuses,`acuse-${packet.id}.json`,signal);
+      if (receipt.id!==packet.id || receipt.sha256 !== digest) continue;
       if (prepared?.id !== packet.id) return;
-      $('copy-status').textContent = receipt.status === 'imported'
-        ? 'Recibida por el Mac mini e importada en la cola.'
-        : 'El Mac mini rechazó la solicitud: '+(receipt.error || 'revisa el archivo.');
-      return;
+      if(receipt.status==='rejected'){$('copy-status').textContent='El Mini rechazó la solicitud: '+(receipt.error||'revisa el archivo.');return;}
+      if(receipt.status!=='imported')continue;
+      $('copy-status').textContent='Recibida por el Mini';
+      try{
+        const state=NexoTransport.progress(await NexoTransport.read(acuses,`progreso-${packet.id}.json`,signal),order);
+        if(signal.aborted||prepared?.id!==packet.id)return;
+        $('copy-status').textContent=state.label;
+        if(['summary_ready','cancelled'].includes(state.status))return;
+      }catch(error){if(signal.aborted)return;if(error.name!=='NotFoundError')$('copy-status').textContent='Recibida · avance por confirmar';}
     } catch (error) { if (error.name !== 'NotFoundError' && !(error instanceof SyntaxError)) break; }
   }
-  if (prepared?.id === packet.id) $('copy-status').textContent = 'Solicitud guardada en Drive; acuse del Mac mini aún pendiente.';
+  if (!signal.aborted&&prepared?.id === packet.id) $('copy-status').textContent+=' · seguimiento en pausa';
 }
 $('send-drive').addEventListener('click',async () => {
   try {
     const packet = requestTracker.prepare(requestSelection());prepared = packet;
     const directory = await globalThis.showDirectoryPicker({id:'nexo-drive-inbox',mode:'readwrite'});
     const digest = await writeDriveRequest(directory,packet);
+    try{await NexoTransport.connection('inbox',directory);}catch(_){/* El envío no depende de recordar la carpeta. */}
+    trackingAbort?.abort();trackingAbort=new AbortController();
     $('copy-status').textContent = 'Solicitud guardada en Drive; esperando acuse del Mac mini.';
-    void awaitDriveReceipt(directory,packet,digest);
+    void awaitDriveReceipt(directory,packet,digest,trackingAbort.signal);
   } catch (error) {
     if (error.name !== 'AbortError') displayRequestError(error);
   }
@@ -99,6 +109,7 @@ $('request-preview').addEventListener('toggle',() => {
   try { prepareRequest(); } catch (cause) { $('request-text').value = '';displayRequestError(cause); }
 });
 updatePeriod();updateFields();clearPreparedView();
+window.addEventListener('pagehide',()=>trackingAbort?.abort());
 
 $('new-request').addEventListener('click',() => {
   requestTracker.reset();prepared = null;clearPreparedView();

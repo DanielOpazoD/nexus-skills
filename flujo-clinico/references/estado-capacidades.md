@@ -1,10 +1,12 @@
-# Capacidades y pendientes — 19-10-2026
+# Capacidades y pendientes — 20-10-2026
 
 Referencia de alcance, no comprobación de disponibilidad actual de los portales. El estado se informa por solicitud y fuente; las pruebas ficticias no acreditan accesos clínicos reales.
 
 | Función | Alcance implementado | Lo que aún falta |
 |---|---|---|
-| Solicitud Air → Mini | HTML/extensión con «Enviar a Drive», JSON+marcador y receptor en el lanzador del Mini con acuse e ID estable; copiar/guardar como respaldo | Verificar distribución en el Air y traslado real entre equipos. El lanzador debe quedar abierto; el acuse solo confirma importación. |
+| Solicitud Air → Mini | JSON+marcador, acuse e ID estable; señal con vencimiento y avance por pedido ligado a su hash, sin pacientes; copiar/guardar como respaldo | Verificar distribución en el Air y traslado físico entre equipos. El acuse solo confirma importación; copia y sincronización son estados distintos. |
+| Ejecutor continuo del Mini | Servicio de usuario con runtime verificado, arranque al iniciar sesión, reinicio y salud; receptor recupera Drive tras ausencia | Configuración instalada en el Mini; el proceso supervisado quedó esperando al abrir Documents. Detenido hasta comprobar esa espera con macOS desbloqueado. Lanzador habitual recuperado. No se afirma servicio permanente activo. |
+| Panel y biblioteca | Círculo en Eloísa, Solicitar/Resúmenes, búsqueda por nombre/RUT, TXT comprobado y copia explícita; lectura local o carpeta Drive elegida | Comprobar extensión recargada en Eloísa y acceso físico desde el Air. Leer/copiar no actualiza fuentes ni genera una redacción. |
 | Seis portales | Clientes existentes, sesiones independientes, períodos y descargas; cola local persistente | Disponibilidad y sesión vigentes en cada ejecución. El Mini concentra el trabajo; Syslab/Exalab requieren su red. |
 | Adjuntos Eloísa | Enumeración por atención, descarga de PDF original, identidad del encabezado, caché, parciales y archivo; ecocardiograma real comprobado | Formatos no PDF, escaneados o encabezados no reconocidos: revisión manual pendiente. |
 | MMRAD actual | Informes TAC y radiografías por selección; ecocardiografías excluidas | Informes ausentes de TAC quedan pendientes. Informe de ecocardiograma: adjunto Eloísa. |

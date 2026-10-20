@@ -43,3 +43,8 @@ test('errores locales no filtran detalles y abrir la vista no transmite paciente
  const tab=setup();await tab.message({type:'nexo.panel.tab',view:'library'},panel);
  assert.equal(tab.tabs[0].url,'chrome-extension://fixture/panel/index.html?view=library');
 });
+test('salud del Mini sólo accesible desde el panel propio y con ruta fija',async()=>{
+ const ui=setup();assert.equal((await ui.message({type:'nexo.worker.health'},panel)).ok,true);
+ assert.equal(ui.requests[0].url,'http://127.0.0.1:8765/api/health');
+ assert.equal(await ui.message({type:'nexo.worker.health'},{id:'fixture',url:'https://clinicohangaroa.eloisa.cl/main'}),null);
+});

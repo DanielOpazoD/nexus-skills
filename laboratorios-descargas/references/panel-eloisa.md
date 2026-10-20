@@ -2,6 +2,8 @@
 
 El círculo **N** azul/violeta aparece en Eloísa Ambulatorio, dentro de `/main`. Abre el panel lateral nativo de Chrome junto a la ficha; Chrome permite ajustar su ancho y cerrarlo. El botón de Nexo en la barra de Chrome abre el mismo panel. Requiere Chrome 116 o posterior. **↗** abre el espacio actual en una pestaña completa.
 
+La cabecera comprueba el ejecutor local o la señal de la bandeja Drive recordada al enviar una orden. «Mini disponible» acredita señal reciente del proceso; no sesiones válidas ni acceso actual a cada portal. «Sin comprobar» significa que no hay conexión autorizada para leer esa señal; «sin señal reciente» no demuestra que el Mini esté apagado. Ver [servicio y protocolo](servicio-mini.md).
+
 Dos espacios, sin modificar la ficha:
 
 - **Solicitar:** formulario habitual, agenda, períodos y contenidos propios por fuente, envío a Drive o copia para Codex. Seleccionar pacientes no inicia descargas.
@@ -12,6 +14,8 @@ Dos espacios, sin modificar la ficha:
 En el Mini, el lanzador local abierto sirve la biblioteca del expediente configurado mediante `/api/library` y `/api/library/read`. En el Air —o sin lanzador— elegir una vez **Conectar carpeta de Drive → Seleccionar carpeta**, y seleccionar `Archivos Mac mini/Pacientes` en el Drive sincronizado. El permiso solicitado es de lectura. Si Chrome requiere concederlo de nuevo, reconectar la carpeta desde ese botón. Si no permite elegirla en el panel lateral, abrir **↗** y seleccionarla allí.
 
 Solo se recuerda el identificador de acceso a la carpeta en IndexedDB. Los textos, nombres, RUT y listas no se guardan en el almacenamiento de la extensión. **Desconectar carpeta** elimina esa conexión recordada. La biblioteca no consulta portales, no descarga nuevas fuentes y no necesita Codex para leer o copiar archivos existentes.
+
+Al enviar una orden se recuerda también el acceso a `_Solicitudes Nexo`, sin guardar pacientes. El seguimiento verifica ID/hash del acuse y progreso; puede continuar hasta diez minutos mientras permanezca abierto el formulario. Cambiar la selección o cerrar la vista cancela el seguimiento anterior. Reenviar el mismo pedido recupera el mismo trabajo. Una fuente completa, una entrega preparada y la sincronización confirmada se muestran por separado. Las lecturas de estado y biblioteca tienen espera acotada; el fallo no borra archivos.
 
 El lector admite únicamente TXT de antecedentes conocidos en `Lectura y entregas`; excluye cierres, estados, sustento, observaciones y fuentes primarias. Las reglas están en `assets/clinical_catalog.json`, compartidas por Python y JavaScript. Límite por archivo: 256 KiB; hasta 100 documentos por paciente y 1.000 pacientes por lectura. La búsqueda muestra hasta 100 coincidencias; precisarla para ver las restantes.
 

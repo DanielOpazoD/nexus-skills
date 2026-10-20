@@ -6,6 +6,7 @@ import {webcrypto} from 'node:crypto';
 import {TextEncoder} from 'node:util';
 const packetCode=await readFile(new URL('../../assets/request_packet.js',import.meta.url),'utf8');
 const controllerCode=await readFile(new URL('../../assets/portable_app.js',import.meta.url),'utf8');
+const transportCode=await readFile(new URL('../../assets/drive_status.js',import.meta.url),'utf8');
 function setup(writeText) {
   const nodes=new Map(),listeners={};
   const $=id=>{
@@ -14,8 +15,8 @@ function setup(writeText) {
   };
   const form={addEventListener(type,fn){listeners['form:'+type]=fn;}};
   const selection={schema:2,ruts:['11111111-1'],source:'rayen',period:'3m',sourcePeriods:{rayen:'10y'},deliveryModel:'documents',eloisaScope:'medicos',mmradMode:'reports',mmradImageTypes:[],merge:false,patientMerge:false};
-  const ctx={$,form,navigator:{clipboard:writeText?{writeText}:undefined},crypto:webcrypto,TextEncoder,updatePeriod(){},updateFields(){},requestSelection:()=>selection};
-  vm.createContext(ctx);vm.runInContext(packetCode+'\n'+controllerCode,ctx);
+  const ctx={$,form,window:{addEventListener(){}},AbortController,setTimeout,clearTimeout,navigator:{clipboard:writeText?{writeText}:undefined},crypto:webcrypto,TextEncoder,updatePeriod(){},updateFields(){},requestSelection:()=>selection};
+  vm.createContext(ctx);vm.runInContext(transportCode+'\n'+packetCode+'\n'+controllerCode,ctx);
   return {$,listeners,selection,ctx,submit:()=>listeners['form:submit']({preventDefault(){}})};
 }
 test('copia rechazada o no disponible muestra texto seleccionable sin confirmar copia',async()=>{
@@ -56,4 +57,14 @@ test('Drive escribe datos antes del marcador y rehúsa sobrescribir otro pedido 
   assert.equal(await ui.ctx.writeDriveRequest(directory,packet),digest);
   const modified={...packet,request:{...packet.request,period:'10y'}};
   await assert.rejects(ui.ctx.writeDriveRequest(directory,modified),/ID ya existe/);
+});
+test('pedido ficticio recorre acuse y progreso hasta resumen sin declarar sincronización',async()=>{
+ const ui=setup();ui.ctx.prepareRequest();const packet=vm.runInContext('prepared',ui.ctx),digest='b'.repeat(64),signal=new AbortController().signal;
+ const files={};files[`acuse-${packet.id}.json`]={id:packet.id,sha256:digest,status:'imported'};
+ files[`progreso-${packet.id}.json`]={version:1,kind:'nexo-request-progress',id:packet.id,sha256:digest,status:'summary_ready',
+  observedAt:new Date().toISOString(),sourceCounts:{completed:1,pending:0,total:1},summary:{ready:1,total:1},fileCount:1,archive:{copy:'complete',sync:'pending'}};
+ const acuses={getFileHandle:async name=>({getFile:async()=>({size:1000,text:async()=>JSON.stringify(files[name])})})};
+ ui.ctx.NexoTransport.pause=async()=>{};
+ await ui.ctx.awaitDriveReceipt({getDirectoryHandle:async()=>acuses},packet,digest,signal);
+ assert.equal(ui.$('copy-status').textContent,'Resumen preparado · Drive por confirmar');
 });
