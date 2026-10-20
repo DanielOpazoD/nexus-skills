@@ -344,3 +344,6 @@
 !/laboratorios-descargas/assets/drive_status.js
 !/laboratorios-descargas/chrome-bridge/request/drive_status.js
 !/laboratorios-descargas/scripts/tests/transport_ui.test.mjs
+!/laboratorios-descargas/scripts/clinical_incremental.py
+!/laboratorios-descargas/scripts/tests/test_incremental.py
+!/laboratorios-descargas/references/actualizacion-incremental.md

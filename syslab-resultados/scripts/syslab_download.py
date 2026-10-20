@@ -165,6 +165,7 @@ class Syslab:
         request.clinical_read_only = path == 'resultadoseleccion.php'
         limit = 32 * 1024 * 1024 if pdf else 8 * 1024 * 1024
         try:
+            request.nexo_pdf=pdf
             with self.opener.open(request, timeout=self.timeout) as response:
                 content = response.read(limit + 1)
                 charset = response.headers.get_content_charset() or "utf-8"
