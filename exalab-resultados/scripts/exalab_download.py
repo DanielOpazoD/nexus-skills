@@ -208,6 +208,7 @@ class Exalab:
         if data is not None:
             headers['X-Requested-With'] = 'XMLHttpRequest'
         req = Request(url, data=None if data is None else urlencode(data).encode(), headers=headers)
+        req.nexo_pdf=pdf
         req.clinical_read_only = path in ('controlador/consulta.php', 'controlador/ventana.php')
         limit = 32 * 1024 * 1024 if pdf else 8 * 1024 * 1024
         try:

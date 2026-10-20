@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import laboratorios_download as labs
 from test_access import Fake,exam,pdf
-p=argparse.ArgumentParser();p.add_argument('--source');p.add_argument('--email-account',default='daniel.opazo@hospitalhangaroa.cl');p.add_argument('--ready-sources');p.add_argument('--ruts',nargs='+');p.add_argument('--period');p.add_argument('--as-of');p.add_argument('--output');p.add_argument('--resume');p.add_argument('--retry-sources');p.add_argument('--eloisa-scope');p.add_argument('--mmrad-mode');p.add_argument('--merge',action='store_true');p.add_argument('--patient-merge',action='store_true');p.add_argument('--session-stdin',action='store_true');p.add_argument('--source-content',default='{}');p.add_argument('--source-periods',default='{}');p.add_argument('--mmrad-image-types',default='radiographs,ultrasounds');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--source');p.add_argument('--email-account',default='daniel.opazo@hospitalhangaroa.cl');p.add_argument('--ready-sources');p.add_argument('--ruts',nargs='+');p.add_argument('--period');p.add_argument('--as-of');p.add_argument('--output');p.add_argument('--resume');p.add_argument('--retry-sources');p.add_argument('--eloisa-scope');p.add_argument('--mmrad-mode');p.add_argument('--merge',action='store_true');p.add_argument('--patient-merge',action='store_true');p.add_argument('--session-stdin',action='store_true');p.add_argument('--source-content',default='{}');p.add_argument('--source-periods',default='{}');p.add_argument('--mmrad-image-types',default='radiographs,ultrasounds');p.add_argument('--cache-dir');a=p.parse_args()
 secrets=json.load(sys.stdin)
 class Fixture(Fake):
     def search(self,rut):

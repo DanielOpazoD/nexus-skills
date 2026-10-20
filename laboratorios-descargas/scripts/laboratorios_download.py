@@ -564,9 +564,11 @@ def collect_group(client, rut, source, period, today, output, merge=False, list_
         client.today = today
         client.period = period
     result = {'rut': rut, 'source': source, 'status': 'empty', 'folios': [], 'files': [], 'pages': 0, 'errors': []}
+    incremental=getattr(client,'incremental',None);initial_metrics=dict(incremental.metrics) if incremental else None
     folder = output / rut / source
     result.update(status='searching', completed_folios=[], pending_folios=[], unavailable_folios=[])
     def publish():
+        if incremental:result['retrieval']={key:value-initial_metrics[key] for key,value in incremental.metrics.items()}
         if progress:
             progress.update(result)
     publish()
@@ -857,11 +859,24 @@ class Adapter:
         return self.client.search(rut.split('-')[0] if self.source == 'syslab' else rut)
 
     def download(self, exam):
-        return self.client.request(exam['url'], pdf=True) if self.source == 'syslab' else self.client.download(exam)
+        download=lambda:self.client.request(exam['url'],pdf=True) if self.source=='syslab' else self.client.download(exam)
+        cache=getattr(self,'incremental',None)
+        if cache is None:return download()
+        validate=lambda content:validate_pdf(content,exam['rut'],exam['id'],self.source,exam['datetime'],exam.get('validation'))
+        context=dict(version=1,source=self.source,rut=exam['rut'],id=exam['id'],date=exam['datetime'].isoformat(),origin=exam.get('source'),
+                     content=getattr(self.client,'content',None),scope=getattr(self.client,'scope',None))
+        if self.source=='eloisa' and not exam.get('validation') and isinstance(exam.get('raw'),dict):
+            if not hasattr(self,'renderer_revision'):self.renderer_revision=hashlib.sha256(Path(load_backend('eloisa').__file__).read_bytes()).hexdigest()
+            context.update(raw=exam['raw'],name=exam.get('name'),node=getattr(self.client,'node_id',None),
+                           renderer=self.renderer_revision)
+            return cache.structured(context,download,validate)
+        if self.source in ('syslab','exalab','mmrad') and hasattr(self.client,'opener'):
+            return cache.http(self.client,context,download,validate)
+        return download()
 
 
 
-def run_batch(ruts, source, period, today, output, clients, merge=False, list_only=False, setup_errors=None, resume=None, fresh=False, eloisa_scope='medicos', retry_unavailable=False, mmrad_mode='reports', patient_merge=False, retry_sources=None, image_workers=1, eloisa_bounded=True, setup_auth_sources=(), mmrad_image_types=None, source_periods=None, source_content=None, email_account='daniel.opazo@hospitalhangaroa.cl'):
+def run_batch(ruts, source, period, today, output, clients, merge=False, list_only=False, setup_errors=None, resume=None, fresh=False, eloisa_scope='medicos', retry_unavailable=False, mmrad_mode='reports', patient_merge=False, retry_sources=None, image_workers=1, eloisa_bounded=True, setup_auth_sources=(), mmrad_image_types=None, source_periods=None, source_content=None, email_account='daniel.opazo@hospitalhangaroa.cl', cache_dir=None):
     if mmrad_mode not in ('reports', 'images', 'both'):
         raise LabsError('Modo MMRAD inválido.')
     if image_workers not in (1, 2): raise LabsError('Usa 1 o 2 descargas simultáneas de imágenes.')
@@ -886,12 +901,16 @@ def run_batch(ruts, source, period, today, output, clients, merge=False, list_on
     blocked_network = set()
     clients = dict(clients)
     for site, client in clients.items():
+        if isinstance(client,Adapter):client.incremental=None
+        if cache_dir and not fresh and isinstance(client,Adapter):
+            from clinical_incremental import Cache
+            client.incremental=Cache(Path(cache_dir)/site)
         if site in source_content:
             (client.client if isinstance(client, Adapter) else client).content = source_content[site]
         client.image_workers = image_workers
         client.bounded_dates = eloisa_bounded
         if site == 'rayen' and isinstance(client, Adapter):
-            client.client.client.pdf_cache = output / '.cache-http' / 'rayen'
+            client.client.client.pdf_cache = Path(cache_dir)/'rayen' if cache_dir and not fresh else output / '.cache-http' / 'rayen'
     with progress.locked():
         from clinical_integrity import audit_results, result_keys
         previous_results = audit_results(progress.state['results'],output,result_keys(normalized,selected,mmrad_mode))
@@ -1022,6 +1041,7 @@ def main(argv=None, secrets=None):
     parser.add_argument('--merge', action='store_true', help='Un PDF por paciente y fuente, con todas sus páginas')
     parser.add_argument('--patient-merge', action='store_true', help='Además, un PDF con todos los documentos completos de cada paciente')
     parser.add_argument('--output', type=Path, default=Path.cwd() / 'outputs' / 'laboratorios')
+    parser.add_argument('--cache-dir',type=Path,help='Caché privada compartida entre pedidos; siempre revalida listado e identidad.')
     parser.add_argument('--as-of', type=date.fromisoformat)
     parser.add_argument('--list-only', action='store_true')
     parser.add_argument('--resume', type=Path, help='Archivo avance.json de una ejecución previa; conserva su fecha de referencia')
@@ -1148,7 +1168,7 @@ def main(argv=None, secrets=None):
             if type(error).__name__ in ('SessionExpired', 'AuthenticationError'):
                 auth_needed = True
                 auth_sources.append(source)
-    summary = run_batch(ruts, args.source, args.period, today, args.output, clients, args.merge, args.list_only, errors, args.resume, args.fresh, args.eloisa_scope, args.retry_unavailable, args.mmrad_mode, args.patient_merge, args.retry_sources, args.image_workers, args.eloisa_bounded, auth_sources, image_types, source_periods, source_content, args.email_account)
+    summary = run_batch(ruts, args.source, args.period, today, args.output, clients, args.merge, args.list_only, errors, args.resume, args.fresh, args.eloisa_scope, args.retry_unavailable, args.mmrad_mode, args.patient_merge, args.retry_sources, args.image_workers, args.eloisa_bounded, auth_sources, image_types, source_periods, source_content, args.email_account,args.cache_dir)
     summary['auth_sources'] = sorted(set(auth_sources + [r['source'].replace('mmrad_images','mmrad') for r in summary['results'] if r.get('auth_required')]))
     for result in summary['results']:
         unit = 'atención(es)' if result['source'] in ('eloisa','his') else 'estudio(s)' if result['source'] in ('mmrad','mmrad_images') else 'folio(s)'

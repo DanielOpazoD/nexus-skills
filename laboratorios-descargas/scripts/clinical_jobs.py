@@ -265,7 +265,7 @@ class PersistentLauncher:
             payload={s:self.payloads[job['id']].pop(s) for s in ready if s in self.payloads[job['id']]}
             args=[self.python,str(Path(__file__).with_name('clinical_worker.py')),str(os.getpid()),str(self.downloader),'--session-stdin','--source',job['source'],'--period',job['period'],
                   '--output',job['work_output'],'--ruts',*job['ruts'],'--eloisa-scope',job['eloisa_scope'],'--mmrad-mode',job['mmrad_mode'],
-                  '--ready-sources',','.join(ready)]
+                  '--ready-sources',','.join(ready),'--cache-dir',str(self.output/'.cache-documentos')]
             if 'email' in job['selected']:args+=['--email-account',job['email_account']]
             if job.get('source_content'):
                 args+=['--source-content',json.dumps(job['source_content'],sort_keys=True)]

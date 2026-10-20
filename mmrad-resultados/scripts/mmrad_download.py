@@ -412,6 +412,7 @@ class MMRAD:
             if referer:
                 headers['Referer'] = referer
             request = Request(url, data=payload, headers=headers, method=method)
+            request.nexo_pdf=pdf
             request.clinical_read_only = bool(data is not None and url == self.search_action)
             self.cookies.add_cookie_header(request)
             try:

@@ -36,6 +36,8 @@ Para solicitudes del MacBook Air, leer [solicitud portátil](references/solicitu
 
 Leer [continuidad](references/continuidad.md) para precomprobación de sesiones, reautenticación única, reanudación por fuente, TLS/red restringida, fechas acotadas y concurrencia de imágenes. Las mejoras de acceso no amplían pacientes, fuentes ni períodos.
 
+Para reutilización entre pedidos y sus límites por fuente, leer [actualización incremental](references/actualizacion-incremental.md). Consultar siempre el listado actual: una caché no sustituye autenticación, búsqueda ni verificación. Un enlace idéntico no acredita contenido vigente.
+
 ## Entrega parcial
 
 Leer el resumen JSON por paciente/fuente aunque el proceso termine con error o falte el PDF único. Entregar y archivar todos los documentos verificados, incluidos los de `incompletos` y `.avance`. Un grupo parcial puede contener PDF individuales completos. Un archivo truncado o con identidad no verificada no sirve como evidencia.
