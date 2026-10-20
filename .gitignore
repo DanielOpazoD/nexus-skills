@@ -336,3 +336,8 @@
 !/.github/
 !/.github/workflows/
 !/.github/workflows/clinical-checks.yml
+
+!/laboratorios-descargas/scripts/clinical_presence.py
+!/laboratorios-descargas/scripts/service_manager.py
+!/laboratorios-descargas/scripts/tests/test_service_transport.py
+!/laboratorios-descargas/references/servicio-mini.md

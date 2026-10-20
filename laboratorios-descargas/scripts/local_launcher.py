@@ -177,6 +177,13 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(content)
             return
         query = parse_qs(path.query)
+        if path.path=='/api/health':
+            inbox=getattr(self.server,'inbox',None)
+            self.send_json(200,dict(app='laboratorios-descargas',version=1,
+                managed=os.environ.get('NEXO_MANAGED')=='1',
+                queue=bool(self.launcher.thread and self.launcher.thread.is_alive()),
+                worker=inbox.health() if inbox else dict(running=False,drive=False)))
+            return
         if path.path in ('/api/library','/api/library/read'):
             try:
                 library=self.launcher.library()
@@ -310,6 +317,7 @@ def serve(output=DEFAULT_OUTPUT, python=None, open_browser=True):
     server.daemon_threads = True
     from drive_inbox import DriveInbox
     inbox = DriveInbox(server.launcher)
+    server.inbox=inbox
     try:
         inbox_active = inbox.start()
     except OSError:
@@ -321,7 +329,12 @@ def serve(output=DEFAULT_OUTPUT, python=None, open_browser=True):
     if inbox_active:
         print('Bandeja Drive activa: {}'.format(inbox.root), flush=True)
     try:
+        import signal
+        def terminate(*_):raise KeyboardInterrupt()
+        signal.signal(signal.SIGTERM,terminate)
         server.serve_forever()
+    except KeyboardInterrupt:
+        pass
     finally:
         inbox.close()
         server.launcher.close()
