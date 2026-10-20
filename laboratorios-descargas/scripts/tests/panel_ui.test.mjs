@@ -14,7 +14,7 @@ class Node{
  setAttribute(key,value){this.attributes[key]=value;}
  focus(){this.focused=true;}select(){this.selected=true;}
 }
-function setup({read,clipboard=async()=>{},patients=[patient],context=()=>null}={}){
+function setup({read,clipboard=async()=>{},patients=[patient],context=()=>null,drive=null}={}){
  const nodes=new Map(),copies=[],events={},get=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
  const doc={hidden:false,getElementById:get,createElement:tag=>new Node(tag),createDocumentFragment:()=>new Node('#fragment'),addEventListener:(type,fn)=>{events[type]=fn;}};
  const reads=[],requests=[];const response=()=>({id:document.id,sha256:document.sha256,text:body,status:'current',name:patient.name,rut:patient.rut});
@@ -26,7 +26,7 @@ function setup({read,clipboard=async()=>{},patients=[patient],context=()=>null}=
   return {ok:true,result:{opened:true}};
  }},tabs:{onActivated:{addListener:fn=>events.tab=fn}}};
  const ctx={ClinicalCatalog:catalog,chrome,document:doc,location:{search:''},URLSearchParams,TextEncoder,TextDecoder,Uint8Array,crypto:webcrypto,
-  NexoDriveLibrary:{savedHandle:async()=>undefined},navigator:{clipboard:{writeText:async text=>{copies.push(text);await clipboard(text);}}},window:{document:doc,addEventListener:(type,fn)=>events[type]=fn}};
+  NexoDriveLibrary:{savedHandle:async()=>drive,DriveLibrary:class{async list(){return {version:1,available:true,patients,issues:0};}}},navigator:{clipboard:{writeText:async text=>{copies.push(text);await clipboard(text);}}},window:{document:doc,addEventListener:(type,fn)=>events[type]=fn}};
  vm.createContext(ctx);vm.runInContext(script,ctx);
  return {$:get,copies,reads,requests,events,doc,ctx,async open(){get('tab-library').events.click();await tick();await tick();},async patient(){get('patient-list').children[0].children[0].events.click();await tick();await tick();},async copy(){await get('copy-summary').events.click();}};
 }
@@ -70,4 +70,17 @@ test('abrir expediente es una acción explícita, independiente de leer o copiar
  const ui=setup({patients:[{...patient,openable:true}]});await ui.open();await ui.patient();
  assert.equal(ui.requests.some(r=>r.type==='nexo.library.open'),false);assert.equal(ui.$('open-patient-folder').hidden,false);
  await ui.$('open-patient-folder').events.click();assert.equal(ui.requests.some(r=>r.type==='nexo.library.open'),true);assert.equal(ui.copies.length,0);
+});
+
+test('Drive muestra procedencia y reconecta el permiso recordado sin elegir otra carpeta',async()=>{
+ let granted=false,requests=0;const handle={async queryPermission(){return granted?'granted':'prompt';},async requestPermission(options){assert.equal(options.mode,'read');requests++;granted=true;return 'granted';}};
+ const ui=setup({drive:handle});await ui.open();assert.match(ui.$('library-origin').textContent,/Mini/);
+ await ui.$('connect-drive').events.click();assert.equal(ui.$('reconnect-drive').hidden,false);
+ await ui.$('reconnect-drive').events.click();await tick();await tick();
+ assert.equal(requests,1);assert.match(ui.$('library-origin').textContent,/Drive/);assert.equal(ui.$('drive-setup').hidden,true);
+});
+test('volver a Resúmenes actualiza la biblioteca sin restaurar texto oculto',async()=>{
+ const ui=setup();await ui.open();await ui.patient();ui.doc.hidden=true;ui.events.visibilitychange();
+ assert.equal(ui.$('summary-text').value,'');ui.doc.hidden=false;ui.events.visibilitychange();await tick();await tick();
+ assert.equal(ui.$('library-list-view').hidden,false);assert.equal(ui.$('patient-list').children.length,1);assert.equal(ui.$('summary-text').value,'');
 });

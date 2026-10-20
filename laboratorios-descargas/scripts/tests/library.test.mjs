@@ -62,3 +62,47 @@ test('el enlace de Drive exige identidad y un ID de carpeta válido, sin URL lib
  p.children['Control y trazabilidad'].children['Carpeta Drive.json']=file('Carpeta Drive.json',JSON.stringify(link));
  assert.match((await new D.DriveLibrary(directory('Pacientes',{'Paciente Ficticio':p})).list()).patients[0].folderUrl,/^https:\/\/drive.google.com\/drive\/folders\//);
 });
+
+test('abrir y copiar sólo releen el expediente elegido, no el resto de Drive',async()=>{
+ const {NexoDriveLibrary:D}=setup(),one=patient(),two=patient('Otro Ficticio','22222222-2');
+ const root=directory('Pacientes',{'Paciente Ficticio':one,'Otro Ficticio':two}),library=new D.DriveLibrary(root);
+ const doc=(await library.list()).patients.find(p=>p.rut==='11111111-1').documents[0];
+ let unrelated=0;two.getDirectoryHandle=async()=>{unrelated++;throw Error('No debe consultar otros pacientes');};
+ root.entries=async function*(){throw Error('No debe recorrer todos los expedientes');};
+ for(let i=0;i<2;i++)assert.equal((await library.read(doc.id,doc.sha256)).text,text);
+ assert.equal(unrelated,0);
+ root.permission='denied';await assert.rejects(library.read(doc.id,doc.sha256),/conectar/);
+});
+test('Drive detecta versión reemplazada, estado nuevo y expediente movido sin escaneo global',async()=>{
+ const {NexoDriveLibrary:D,NexoLibraryCore:C}=setup(),p=patient(),control=p.children['Control y trazabilidad'];
+ const root=directory('Pacientes',{'Paciente Ficticio':p}),library=new D.DriveLibrary(root);
+ const sha=await C.checksum(new TextEncoder().encode(text));
+ const manifest={version:1,products:{'delivery-antecedentes':{current:{path:'Lectura y entregas/Resumen de antecedentes.txt',sha256:sha,freshness:'current'}}}};
+ const index=file('Entregas vigentes.json',JSON.stringify(manifest));control.children[index.name]=index;
+ const doc=(await library.list()).patients[0].documents[0];
+ manifest.products['delivery-antecedentes'].current.freshness='stale';index.content=JSON.stringify(manifest);
+ assert.equal((await library.read(doc.id,sha)).status,'stale');
+ manifest.products['delivery-antecedentes'].current.path='Lectura y entregas/20-10-2026 Resumen antecedentes.txt';index.content=JSON.stringify(manifest);
+ await assert.rejects(library.read(doc.id,sha),/cambió/);
+ delete control.children[index.name];await assert.rejects(library.read(doc.id,sha),/cambió/);
+ delete root.children['Paciente Ficticio'];await assert.rejects(library.read(doc.id,sha));
+});
+test('el índice vigente evita descargar versiones históricas y rechaza rutas ajenas',async()=>{
+ const {NexoDriveLibrary:D,NexoLibraryCore:C}=setup(),p=patient(),reading=p.children['Lectura y entregas'];let historicalReads=0;
+ reading.children['19-10-2026 Resumen antecedentes.txt']={kind:'file',async getFile(){historicalReads++;throw Error('Histórico no requerido');}};
+ const manifest={version:1,products:{'delivery-antecedentes':{current:{path:'Lectura y entregas/Resumen de antecedentes.txt',sha256:await C.checksum(new TextEncoder().encode(text)),freshness:'current'}}}};
+ const index=file('Entregas vigentes.json',JSON.stringify(manifest));p.children['Control y trazabilidad'].children[index.name]=index;
+ const library=new D.DriveLibrary(directory('Pacientes',{'Paciente Ficticio':p}));
+ assert.equal((await library.list()).patients[0].documents.length,1);assert.equal(historicalReads,0);
+ manifest.products['delivery-antecedentes'].current.path='Lectura y entregas/../Control y trazabilidad/Resumen de antecedentes.txt';index.content=JSON.stringify(manifest);
+ assert.equal((await library.list()).patients.length,0);
+});
+test('un cambio de índice durante la lectura invalida la respuesta',async()=>{
+ const {NexoDriveLibrary:D,NexoLibraryCore:C}=setup(),p=patient(),sha=await C.checksum(new TextEncoder().encode(text));
+ const manifest={version:1,products:{'delivery-antecedentes':{current:{path:'Lectura y entregas/Resumen de antecedentes.txt',sha256:sha,freshness:'current'}}}};
+ const index=file('Entregas vigentes.json',JSON.stringify(manifest));p.children['Control y trazabilidad'].children[index.name]=index;
+ const library=new D.DriveLibrary(directory('Pacientes',{'Paciente Ficticio':p})),doc=(await library.list()).patients[0].documents[0];
+ const report=p.children['Lectura y entregas'].children['Resumen de antecedentes.txt'],getFile=report.getFile.bind(report);
+ report.getFile=async()=>{manifest.products['delivery-antecedentes'].current.freshness='stale';index.content=JSON.stringify(manifest);return getFile();};
+ await assert.rejects(library.read(doc.id,sha),/durante/);
+});

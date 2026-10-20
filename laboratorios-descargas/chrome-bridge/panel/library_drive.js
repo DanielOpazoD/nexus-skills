@@ -36,6 +36,19 @@
     if(!first||identities.some(item=>item.rut!==first.rut||!C.sameName(item.name,first.name)))throw Error('Identidad ambigua o ausente.');
     return first;
   }
+  async function currentDelivery(directory){
+    try{
+      const control=await folder(directory,R.controlFolder);
+      const manifest=JSON.parse((await file(control,R.manifestFilename,1048576)).text);
+      if(manifest.version!==1)throw Error('Índice no compatible.');
+      const current=manifest.products?.['delivery-antecedentes']?.current||null;
+      if(current){
+        const name=typeof current.path==='string'&&current.path.startsWith(R.readingFolder+'/')?current.path.slice(R.readingFolder.length+1):'';
+        if(!name||/[\\/]/.test(name)||C.filenameDate(name)===null||!/^[a-f0-9]{64}$/.test(current.sha256))throw Error('Entrega no verificable.');
+      }
+      return current;
+    }catch(error){if(error.name==='NotFoundError')return null;throw error;}
+  }
   class DriveLibrary{
     constructor(handle){if(handle?.kind!=='directory'||handle.name!==R.patientsFolder)throw Error('Selecciona la carpeta «Pacientes».');this.handle=handle;this.references=new Map();}
     async list(){
@@ -48,18 +61,14 @@
           const patient=await folderIdentity(handle);let control;
           try{control=await folder(handle,R.controlFolder);}catch(error){if(error.name!=='NotFoundError')throw error;}
           if(!C.sameName(directoryName.replace(/ \(\d+\)$/,''),patient.name))throw Error('Nombre contradictorio.');
-          let current=null;
-          try{
-            const manifest=JSON.parse((await file(control||await folder(handle,R.controlFolder),R.manifestFilename,1048576)).text);
-            if(manifest.version!==1)throw Error('Índice no compatible.');
-            current=manifest.products?.['delivery-antecedentes']?.current||null;
-          }catch(error){if(error.name!=='NotFoundError')throw error;}
+          const current=await currentDelivery(handle);
           const documents=[];
           let folderUrl=null;
           if(control){try{folderUrl=C.folderUrl(JSON.parse((await file(control,'Carpeta Drive.json',4096)).text),patient);}catch(error){if(error.name!=='NotFoundError')issues++;}}
           try{
             const reading=await folder(handle,R.readingFolder);
-            for await(const [name,document] of reading.entries()){
+            const candidates=current?[[current.path.slice(R.readingFolder.length+1),await reading.getFileHandle(current.path.slice(R.readingFolder.length+1))]]:reading.entries();
+            for await(const [name,document] of candidates){
               if(document.kind!=='file')continue;
               try{
                 const date=C.filenameDate(name);if(date===null)continue;
@@ -70,7 +79,7 @@
                 const status=current?.freshness|| (current?'current':'existing');
                 const id=await C.checksum(new TextEncoder().encode(patient.rut+'\0'+directoryName+'\0'+name+'\0'+content.sha256));
                 documents.push({id,date,referenceDate:C.referenceDate(content.text),status,sha256:content.sha256});
-                references.set(id,{handle:document,...patient,status,sha256:content.sha256});
+                references.set(id,{directoryName,filename:name,...patient,status,sha256:content.sha256,tracked:!!current});
               }catch(_){issues++;}
             }
           }catch(error){if(error.name!=='NotFoundError')throw error;}
@@ -86,12 +95,20 @@
       return {version:1,available:true,patients:valid,issues};
     }
     async read(id,sha256){
-      // Releer el índice detecta una nueva versión o un traslado posterior.
-      await this.list();const reference=this.references.get(id);
+      // Resolver la ruta otra vez: un handle antiguo no acredita un archivo movido.
+      if(await this.handle.queryPermission({mode:'read'})!=='granted')throw Error('Vuelve a conectar tu carpeta Pacientes.');
+      const reference=this.references.get(id);
       if(!reference || reference.sha256!==sha256)throw Error('El resumen cambió. Actualiza la lista.');
-      const content=await C.textFile(reference.handle),identity=C.documentIdentity(content.text,reference.name);
+      const directory=await folder(this.handle,reference.directoryName),patient=await folderIdentity(directory);
+      if(patient.rut!==reference.rut || !C.sameName(patient.name,reference.name))throw Error('La identidad del expediente cambió.');
+      const current=await currentDelivery(directory);
+      if((reference.tracked&&!current) || current&&(current.path!==R.readingFolder+'/'+reference.filename || current.sha256!==sha256))throw Error('El resumen cambió. Actualiza la lista.');
+      const reading=await folder(directory,R.readingFolder);
+      const content=await C.textFile(await reading.getFileHandle(reference.filename)),identity=C.documentIdentity(content.text,reference.name);
       if(content.sha256!==sha256 || identity.rut!==reference.rut || !C.sameName(identity.name,reference.name))throw Error('El resumen cambió durante la lectura.');
-      return {id,...content,name:reference.name,rut:reference.rut,status:reference.status};
+      if(JSON.stringify(current)!==JSON.stringify(await currentDelivery(directory)))throw Error('El resumen cambió durante la lectura.');
+      const status=current?.freshness||(current?'current':'existing');
+      return {id,...content,name:reference.name,rut:reference.rut,status};
     }
   }
   root.NexoDriveLibrary={DriveLibrary,savedHandle};
