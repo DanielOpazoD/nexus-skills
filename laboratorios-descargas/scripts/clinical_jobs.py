@@ -428,6 +428,14 @@ class PersistentLauncher:
         from clinical_library import ClinicalLibrary
         return ClinicalLibrary(self.archive_root)
 
+    def transport_status(self,ident):
+        from clinical_artifacts import states
+        from clinical_presence import project
+        with self.lock:
+            job=self.jobs.get(ident)
+            if not job:raise ValueError('Solicitud no encontrada.')
+            return project(job,states(job))
+
     def close(self):
         self.stop_event.set();self.wake.set()
         with self.lock:processes=list(self.processes.values())

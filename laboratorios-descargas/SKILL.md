@@ -24,6 +24,8 @@ Para registrar productos redactados, comprobar su vigencia y cerrar una orden, l
 
 Para abrir el lanzador o mostrar el formulario, leer [interfaz local](references/interfaz-local.md). El lanzador conserva trabajo y cola en `~/Documents/Descargas clínicas/` y copia automáticamente al expediente por nombre en Drive, verificando identidad e integridad. Presenta por separado copia local y sincronización remota; sin conexión autorizada a Drive, esta última queda pendiente.
 
+Para funcionamiento continuo en el Mini, instalación/detención del servicio y señales de recepción/avance, leer [servicio del Mini](references/servicio-mini.md). El arranque automático no sustituye las sesiones de los portales ni confirma sincronización entre equipos.
+
 La extensión añade un círculo en Eloísa Ambulatorio y dos espacios en su panel lateral: **Solicitar** y **Resúmenes**. Para leer/copiar antecedentes existentes desde el Mini o el Drive del Air, aplicar [panel de Eloísa y biblioteca](references/panel-eloisa.md). Lectura sin nueva búsqueda ni redacción; identidad y hash comprobados antes de copiar, sin pegar o guardar en la ficha.
 
 Para elegir pacientes por fecha, usar «Desde agenda» en el panel o formulario de la extensión Chrome v3: funciona en Air y Mini con su propia sesión. Leer [agenda Eloísa](../eloisa-resultados/references/agenda.md); seleccionar pacientes no ejecuta la orden.

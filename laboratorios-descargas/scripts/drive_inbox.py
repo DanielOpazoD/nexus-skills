@@ -8,6 +8,8 @@ import os
 import re
 import secrets
 import threading
+import time
+from clinical_presence import heartbeat
 
 from clinical_archive import DEFAULT_ROOT
 from portable_request import parse
@@ -18,6 +20,7 @@ REQUEST_NAME = re.compile(r'^solicitud-([0-9a-f]{32})\.ready$')
 
 def _write_receipt(path, data):
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if path.parent.is_symlink() or path.is_symlink():raise OSError('Destino enlazado.')
     temporary = path.parent / ('.acuse-' + secrets.token_hex(8) + '.tmp')
     try:
         descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
@@ -37,12 +40,12 @@ class DriveInbox:
         self.interval = interval
         self.stop = threading.Event()
         self.thread = None
+        self.instance=secrets.token_hex(8)
+        self.last_seen=None
+        self.accepting=False
+        self._last_status=0
 
     def start(self):
-        if not self.root.parent.is_dir():
-            return False
-        self.root.mkdir(mode=0o700, exist_ok=True)
-        (self.root / 'acuses').mkdir(mode=0o700, exist_ok=True)
         self.thread = threading.Thread(target=self._loop, daemon=True)
         self.thread.start()
         return True
@@ -51,18 +54,35 @@ class DriveInbox:
         self.stop.set()
         if self.thread:
             self.thread.join(timeout=self.interval + 1)
+        try:
+            if self.root.is_dir() and not self.root.is_symlink():_write_receipt(self.root/'worker.json',heartbeat(self.instance,running=False))
+        except OSError:pass
+
+    def health(self):
+        return dict(running=bool(self.thread and self.thread.is_alive() and not self.stop.is_set()),
+                    drive=self.accepting,lastSeen=self.last_seen,instance=self.instance)
 
     def _loop(self):
         while not self.stop.is_set():
             try:
                 self.scan_once()
             except OSError:
-                pass  # Drive may disappear; retry when it returns.
+                self.accepting=False  # Drive may disappear; retry when it returns.
             self.stop.wait(self.interval)
 
     def scan_once(self):
+        if self.root.parent.is_dir() and not self.root.is_symlink():
+            self.root.mkdir(mode=0o700,exist_ok=True)
         if not self.root.is_dir() or self.root.is_symlink():
+            self.accepting=False
             return 0
+        self.accepting=True
+        self.last_seen=datetime.now(ZoneInfo('Pacific/Easter')).isoformat()
+        refresh=time.monotonic()-self._last_status>=15
+        if refresh:
+            alive=not hasattr(self.launcher,'thread') or bool(self.launcher.thread and self.launcher.thread.is_alive())
+            _write_receipt(self.root/'worker.json',heartbeat(self.instance,accepting=alive))
+            self._last_status=time.monotonic()
         count = 0
         for ready in sorted(self.root.glob('solicitud-*.ready'))[:1000]:
             match = REQUEST_NAME.fullmatch(ready.name)
@@ -89,6 +109,7 @@ class DriveInbox:
                     except ValueError:
                         previous = {}
                     if previous.get('sha256') == digest:
+                        if refresh and previous.get('status')=='imported':self.publish_progress(previous)
                         continue
                 packet = parse(raw.decode('utf-8'))
                 if packet['id'] != ident:
@@ -104,7 +125,17 @@ class DriveInbox:
             response['receivedAt'] = datetime.now(ZoneInfo('Pacific/Easter')).isoformat()
             try:
                 _write_receipt(self.root / 'acuses' / f'acuse-{ident}.json', response)
+                if response['status']=='imported':self.publish_progress(response)
                 count += 1
             except OSError:
                 continue
         return count
+
+    def publish_progress(self,receipt):
+        if not hasattr(self.launcher,'transport_status'):return
+        try:
+            state=self.launcher.transport_status(receipt['jobId'])
+            state.update(version=1,kind='nexo-request-progress',id=receipt['id'],sha256=receipt['sha256'],
+                         observedAt=datetime.now(ZoneInfo('Pacific/Easter')).isoformat())
+            _write_receipt(self.root/'acuses'/f"progreso-{receipt['id']}.json",state)
+        except (OSError,ValueError,KeyError):pass
