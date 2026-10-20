@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 const form = $('request-form');
+if(new URLSearchParams(location.search).get('embedded')==='1')document.body.classList.add('nexo-embedded');
 const labels = {...ClinicalCatalog.sources,mmrad_images:'Imágenes MMRAD'};
 let submitting = false, bridgeVersion = 0;
 function selectedSources() { return Array.from(form.querySelectorAll('input[name="source"]:checked'),input => input.value); }

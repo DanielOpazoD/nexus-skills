@@ -51,7 +51,7 @@ def publish(source, folder, sha256, slot, job, *, revision=None):
                 raise ArchiveError('La entrega vigente fue editada o no está disponible; conservar edición y revisar antes de sustituirla.')
         copied, checksum = copy_version(source, target, sha256)
         entry = dict(path=str(copied.relative_to(folder)), sha256=checksum, rank=rank,
-                     job=job['id'], revision=revision)
+                     job=job['id'], revision=revision, freshness='current')
         if historical:
             if entry not in product['history']:product['history'].append(entry)
         elif current != entry:
@@ -90,3 +90,18 @@ def publish(source, folder, sha256, slot, job, *, revision=None):
             atomic_json(ledger, data)
         atomic_json(ledger, data)
         return copied, checksum, pending
+
+
+def mark_freshness(folder,slot,job_id,status):
+    """Exportar vigencia mínima para lectores del Air; no incluye prosa ni sesiones."""
+    if status not in ('stale','modified'):return
+    folder=Path(folder)
+    ledger=safe_path(folder,CONTROL_FOLDER+'/Entregas vigentes.json')
+    if not ledger.is_file():return
+    lock=safe_path(folder,CONTROL_FOLDER+'/.entregas.lock')
+    with lock.open('a+b') as owner:
+        fcntl.flock(owner.fileno(),fcntl.LOCK_EX)
+        data=json.loads(ledger.read_text())
+        current=data.get('products',{}).get(slot,{}).get('current')
+        if current and current.get('job')==job_id and current.get('freshness')!=status:
+            current['freshness']=status;atomic_json(ledger,data)

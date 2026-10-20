@@ -313,3 +313,26 @@
 !/laboratorios-descargas/scripts/register_delivery.py
 !/laboratorios-descargas/scripts/tests/test_artifact_lifecycle.py
 !/laboratorios-descargas/references/entregas-verificadas.md
+
+# Panel lateral y biblioteca de resúmenes; sin expedientes ni cachés
+!/laboratorios-descargas/chrome-bridge/eloisa_panel.js
+!/laboratorios-descargas/chrome-bridge/panel_worker.js
+!/laboratorios-descargas/chrome-bridge/panel/
+!/laboratorios-descargas/chrome-bridge/panel/index.html
+!/laboratorios-descargas/chrome-bridge/panel/panel.css
+!/laboratorios-descargas/chrome-bridge/panel/panel.js
+!/laboratorios-descargas/chrome-bridge/panel/library_core.js
+!/laboratorios-descargas/chrome-bridge/panel/library_drive.js
+!/laboratorios-descargas/scripts/clinical_library.py
+!/laboratorios-descargas/scripts/tests/test_clinical_library.py
+!/laboratorios-descargas/scripts/tests/library.test.mjs
+!/laboratorios-descargas/scripts/tests/panel_worker.test.mjs
+!/laboratorios-descargas/scripts/tests/panel_ui.test.mjs
+!/laboratorios-descargas/scripts/tests/panel_button.test.mjs
+!/laboratorios-descargas/scripts/tests/library_cases.json
+!/laboratorios-descargas/references/panel-eloisa.md
+
+# Verificación pública sin credenciales ni datos clínicos
+!/.github/
+!/.github/workflows/
+!/.github/workflows/clinical-checks.yml

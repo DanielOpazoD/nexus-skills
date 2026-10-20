@@ -177,6 +177,13 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(content)
             return
         query = parse_qs(path.query)
+        if path.path in ('/api/library','/api/library/read'):
+            try:
+                library=self.launcher.library()
+                result=library.list() if path.path=='/api/library' else library.read(query.get('id',[''])[0],query.get('sha256',[''])[0])
+                self.send_json(200,result)
+            except (ValueError,OSError):self.send_json(409,{'error':'El resumen cambió o no está disponible. Actualiza la lista.'})
+            return
         if path.path == '/api/config':
             self.send_json(200, {'app':'laboratorios-descargas',
                                  'extension_dir':str(extension_directory()),

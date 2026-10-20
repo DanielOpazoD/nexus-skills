@@ -36,6 +36,7 @@ def package(output):
     if manifest['manifest_version'] != 3:
         raise ValueError('Se esperaba Manifest V3.')
     required = [manifest['background']['service_worker'], 'request/index.html']
+    if manifest.get('side_panel'):required.append(manifest['side_panel']['default_path'])
     required += list(manifest.get('icons', {}).values())
     required += list(manifest.get('action', {}).get('default_icon', {}).values())
     for content in manifest.get('content_scripts', []):

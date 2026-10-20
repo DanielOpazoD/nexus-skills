@@ -1,6 +1,6 @@
-# Nexo — 19-10-2026
+# Nexo — 20-10-2026
 
-Nombre visible: **Nexo · Consulta clínica**. Reemplaza «Puente local de descargas clínicas» en Chrome. La carpeta de instalación conserva su ruta para que Chrome mantenga la misma extensión. Versión 3.3.0; mantiene permisos y contrato portátil. El formulario deriva períodos y modelos de los catálogos canónicos; el panel local distingue entregas pendientes, verificadas y archivadas.
+Nombre visible: **Nexo · Consulta clínica**. Reemplaza «Puente local de descargas clínicas» en Chrome. La carpeta de instalación conserva su ruta para que Chrome mantenga la misma extensión. Versión 3.4.0; conserva el contrato portátil y añade `sidePanel` y `clipboardWrite` para el [panel de Eloísa](panel-eloisa.md). El formulario deriva períodos y modelos de los catálogos canónicos; el panel local distingue entregas pendientes, verificadas y archivadas. La extensión separa **Solicitar** y **Resúmenes**, con círculo azul/violeta discreto dentro de Eloísa.
 
 Identidad: N blanca de cintas enlazadas sobre azul eléctrico/violeta; interfaz neutra con acento violeta. Original `assets/brand/nexo-original.png`; cabecera `assets/brand/nexo-128.png`. Iconos PNG separados de 16, 32, 48 y 128 píxeles en `chrome-bridge/icons/`, conforme a [Chrome](https://developer.chrome.com/docs/extensions/reference/manifest/icons). El generador copia el icono al formulario de extensión e integra sus bytes en el HTML portátil; no requiere red para mostrarlo.
 
