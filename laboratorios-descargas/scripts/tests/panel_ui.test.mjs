@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFile} from 'node:fs/promises';import {webcrypto} from 'node:crypto';
 const base=new URL('../../',import.meta.url);
 const catalog=JSON.parse(await readFile(new URL('assets/clinical_catalog.json',base),'utf8'));
-const script=(await readFile(new URL('chrome-bridge/panel/library_core.js',base),'utf8'))+'\n'+(await readFile(new URL('chrome-bridge/panel/panel.js',base),'utf8'));
+const script=(await readFile(new URL('chrome-bridge/panel/connectivity.js',base),'utf8'))+'\n'+(await readFile(new URL('chrome-bridge/panel/library_core.js',base),'utf8'))+'\n'+(await readFile(new URL('chrome-bridge/panel/panel.js',base),'utf8'));
 const document={id:'a'.repeat(64),sha256:'b'.repeat(64),date:'20-10-2026',referenceDate:'19-10-2026',status:'current'};
 const patient={id:'p1',name:'Paciente Ficticio',rut:'11111111-1',documents:[document]};
 const body='Paciente: Paciente Ficticio\nRUT: 11111111-1\nFecha de referencia: 19-10-2026\n\nAntecedentes documentados.';
@@ -14,18 +14,19 @@ class Node{
  setAttribute(key,value){this.attributes[key]=value;}
  focus(){this.focused=true;}select(){this.selected=true;}
 }
-function setup({read,clipboard=async()=>{},patients=[patient],context=()=>null,drive=null,check}={}){
+function setup({read,clipboard=async()=>{},patients=[patient],context=()=>null,drive=null,check,transport=null,health}={}){
  const timers=new Map(),nodes=new Map(),copies=[],events={},get=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
  const doc={hidden:false,getElementById:get,createElement:tag=>new Node(tag),createDocumentFragment:()=>new Node('#fragment'),addEventListener:(type,fn)=>{events[type]=fn;}};
  const reads=[],requests=[];const response=()=>({id:document.id,sha256:document.sha256,text:body,status:'current',name:patient.name,rut:patient.rut});
- const chrome={runtime:{id:'fixture',onMessage:{addListener:fn=>events.message=fn},sendMessage:async message=>{
+ const chrome={runtime:{id:'fixture',getManifest:()=>({version:'3.8.0'}),onMessage:{addListener:fn=>events.message=fn},sendMessage:async message=>{
+  if(message.type==='nexo.worker.health')return health?health():{ok:true,result:{app:'laboratorios-descargas',version:1,queue:true,worker:{running:true}}};
   if(message.type==='nexo.library.list')return {ok:true,result:{version:1,available:true,patients:check&&requests.length?await Promise.all(patients.map(p=>check(p.id))):patients,issues:0}};
   requests.push(message);
   if(message.type==='nexo.patient.context')return {ok:true,result:{patient:context()}};
   if(message.type==='nexo.library.read'){reads.push(message);return {ok:true,result:await(read?read(message):response())};}
   return {ok:true,result:{opened:true}};
  }},tabs:{onActivated:{addListener:fn=>events.tab=fn}}};
- const ctx={ClinicalCatalog:catalog,chrome,document:doc,location:{search:''},URLSearchParams,setInterval:(fn,ms)=>{timers.set(ms,fn);return ms;},clearInterval:ms=>timers.delete(ms),TextEncoder,TextDecoder,Uint8Array,crypto:webcrypto,
+ const ctx={NexoTransport:transport,ClinicalCatalog:catalog,chrome,document:doc,location:{search:''},URLSearchParams,setTimeout,clearTimeout,setInterval:(fn,ms)=>{timers.set(ms,fn);return ms;},clearInterval:ms=>timers.delete(ms),TextEncoder,TextDecoder,Uint8Array,crypto:webcrypto,
   NexoDriveLibrary:{savedHandle:async()=>drive,DriveLibrary:class{async list(){return {version:1,available:true,patients,issues:0};}async patient(id){return check?check(id):patients.find(p=>p.id===id);}}},navigator:{clipboard:{writeText:async text=>{copies.push(text);await clipboard(text);}}},window:{document:doc,addEventListener:(type,fn)=>events[type]=fn}};
  vm.createContext(ctx);vm.runInContext(script,ctx);
  return {$:get,copies,reads,requests,events,doc,ctx,timers,async open(){get('tab-library').events.click();await tick();await tick();},async patient(){get('patient-list').children[0].children[0].events.click();await tick();await tick();},async copy(){await get('copy-summary').events.click();}};
@@ -146,4 +147,39 @@ test('cambiar la ficha durante una copia manual también invalida la selección 
   return {id:document.id,sha256:document.sha256,text:body,status:'current'};
  }});await ui.open();await ui.patient();await ui.copy();
  assert.equal(ui.copies.length,0);assert.equal(ui.$('summary-text').value,'');assert.equal(ui.$('copy-summary').disabled,true);
+});
+
+test('copiar diagnóstico no incluye el resumen, paciente, RUT ni rutas',async()=>{
+ const ui=setup();await ui.open();await ui.patient();await ui.$('copy-diagnostic').events.click();
+ const diagnostic=ui.copies[0];assert.match(diagnostic,/diagnóstico de conexión/);assert.match(diagnostic,/3.8.0/);
+ assert.doesNotMatch(diagnostic,/Paciente Ficticio|11111111|Antecedentes documentados|sha256|\/Users/);
+ assert.equal(ui.$('diagnostic-status').textContent,'Diagnóstico copiado');
+});
+test('diagnóstico con portapapeles rechazado ofrece selección sin afirmar copia',async()=>{
+ const ui=setup({clipboard:async()=>{throw Error('denied');}});await ui.$('copy-diagnostic').events.click();
+ assert.equal(ui.$('diagnostic-text').hidden,false);assert.equal(ui.$('diagnostic-text').selected,true);assert.match(ui.$('diagnostic-status').textContent,/⌘C/);
+});
+test('un fallo transitorio de lectura se recupera sin nueva selección ni copia automática',async()=>{
+ let calls=0;const ui=setup({read:async()=>{if(++calls<3)throw Object.assign(Error('temporal'),{code:'unavailable'});return {id:document.id,sha256:document.sha256,text:body,status:'current'};}});
+ const read=ui.ctx.NexoConnectivity.read;ui.ctx.NexoConnectivity.read=(operation,options)=>read(operation,{...options,pause:async()=>{}});
+ await ui.open();await ui.patient();assert.equal(calls,3);assert.equal(ui.$('summary-text').value,body);assert.equal(ui.copies.length,0);
+});
+test('tras agotar un sondeo fallido se espera acción manual, sin otro ciclo automático',async()=>{
+ let calls=0;const ui=setup({check:()=>{calls++;throw Object.assign(Error('Permiso vencido'),{code:'permission'});}});
+ await ui.open();await ui.patient();await ui.timers.get(15000)();await ui.timers.get(15000)();
+ assert.equal(calls,1);assert.equal(ui.$('summary-text').value,body);assert.equal(ui.$('copy-summary').disabled,true);
+});
+
+test('diagnóstico conserva el contador real del fallo local y la señal vencida de respaldo',async()=>{
+ let calls=0,finish;const third=new Promise(resolve=>finish=resolve);
+ const transport={bounded:async promise=>promise,connection:async()=>({queryPermission:async()=> 'granted'}),read:async()=>({}),worker:()=>({status:'stale'})};
+ const ui=setup({transport,health:()=>{if(++calls===3)finish();return {ok:false,code:'unavailable',retryable:true,error:'fallo ficticio'};}});
+ await third;await tick();await tick();await ui.$('copy-diagnostic').events.click();
+ assert.equal(calls,3);assert.match(ui.copies[0],/mini · unavailable · intento 3\/3/);assert.equal(ui.$('worker-status').textContent,'Mini · sin señal reciente');
+});
+test('la comprobación de carpeta informa tres intentos al agotarse la recuperación',async()=>{
+ let calls=0,finish;const third=new Promise(resolve=>finish=resolve);
+ const drive={kind:'directory',name:'Pacientes',queryPermission:async()=> 'granted',async *entries(){if(++calls===3)finish();throw Object.assign(Error('temporal'),{name:'NetworkError'});}};
+ const ui=setup({drive});await third;await tick();await tick();await ui.$('copy-diagnostic').events.click();
+ assert.equal(calls,3);assert.match(ui.copies[0],/drive · unavailable · intento 3\/3/);
 });

@@ -1,14 +1,14 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFile} from 'node:fs/promises';
 const root=new URL('../../chrome-bridge/',import.meta.url);
 const code=(await readFile(new URL('panel_worker.js',root),'utf8'))+'\n'+(await readFile(new URL('worker.js',root),'utf8'));
-function setup({failOpen=false,failFetch=false}={}){
+function setup({failOpen=false,failFetch=false,status=200,raw=null,contentType='application/json',fetchError=null}={}){
  let listener,action;const opened=[],requests=[],tabs=[],broadcasts=[];
  const chrome={runtime:{id:'fixture',sendMessage:async message=>broadcasts.push(message),getURL:path=>'chrome-extension://fixture/'+path,onMessage:{addListener:fn=>listener=fn}},
    action:{onClicked:{addListener:fn=>action=fn}},tabs:{query:async()=>[{id:7}],create:async arg=>tabs.push(arg)},
    sidePanel:{open:arg=>{opened.push(arg);return failOpen?Promise.reject(Error('private error')):Promise.resolve();}}};
  const ctx={chrome,importScripts(){},URL,AbortSignal,fetch:async(url,options)=>{
-   requests.push({url,options});if(failFetch)throw Error('private-token-error');
-   return new Response(JSON.stringify({version:1,patients:[],available:true}),{headers:{'content-type':'application/json'}});
+   requests.push({url,options});if(fetchError)throw fetchError;if(failFetch)throw Error('private-token-error');
+   return new Response(raw??JSON.stringify({version:1,patients:[],available:true}),{status,headers:{'content-type':contentType}});
  }};vm.runInNewContext(code,ctx);
  return {opened,requests,tabs,broadcasts,action:tab=>action(tab),message:(message,sender)=>new Promise(resolve=>{const keep=listener(message,sender,result=>resolve(result));if(!keep)resolve(null);})};
 }
@@ -64,4 +64,16 @@ test('sólo un cambio de la pestaña activa oficial se retransmite al panel, sin
  assert.equal(ui.broadcasts.length,1);
  assert.equal(await ui.message({type:'nexo.patient.changed',rut:'11111111-1'},sender),null);
  assert.equal(await ui.message({type:'nexo.patient.changed'},{...sender,url:'https://evil.invalid/main'}),null);
+});
+
+test('el puente distingue errores transitorios de permisos, versión y contenido sin filtrar respuesta',async()=>{
+ for(const [status,code,retryable] of [[503,'unavailable',true],[401,'permission',false],[404,'incompatible',false],[400,'integrity',false]]){
+  const ui=setup({status,raw:'PRIVATE-RESPONSE'}),result=await ui.message({type:'nexo.library.list'},panel);
+  assert.equal(result.code,code);assert.equal(result.retryable,retryable);assert.doesNotMatch(JSON.stringify(result),/PRIVATE/);
+ }
+ for(const options of [{raw:'not-json'},{contentType:'text/html'}]){
+  const result=await setup(options).message({type:'nexo.library.list'},panel);assert.equal(result.code,'integrity');assert.equal(result.retryable,false);
+ }
+ const timeout=await setup({fetchError:Object.assign(Error('PRIVATE'),{name:'TimeoutError'})}).message({type:'nexo.library.list'},panel);assert.equal(timeout.code,'timeout');assert.equal(timeout.retryable,true);
+ const open=await setup({status:503}).message({type:'nexo.library.open',id:'a'.repeat(64),token:'b'.repeat(43)},panel);assert.equal(open.retryable,false);
 });

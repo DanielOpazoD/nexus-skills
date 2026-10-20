@@ -1,4 +1,4 @@
-# Panel de Eloísa · Nexo 3.7.0
+# Panel de Eloísa · Nexo 3.8.0
 
 El círculo **N** azul/violeta aparece en Eloísa Ambulatorio, dentro de `/main`. Abre el panel lateral nativo de Chrome junto a la ficha; Chrome permite ajustar su ancho y cerrarlo. El botón de Nexo en la barra de Chrome abre el mismo panel. Requiere Chrome 116 o posterior. **↗** abre el espacio actual en una pestaña completa.
 
@@ -43,6 +43,14 @@ Una desconexión conserva la vista anterior con copia bloqueada y **Reconectar D
 
 En el lanzador del Mini, **Reintentar fuentes pendientes** aparece junto al estado de las fuentes. Reanuda el trabajo original conservando ID, alcance y archivos; el motor omite fuentes completas. Las sesiones vencidas requieren iniciar sesión y reintentar sesiones. El formulario portátil del Air no ejecuta ese reintento local: enviar o copiar otra solicitud no equivale a reanudar la anterior.
 
+## Conexión y diagnóstico
+
+Pulsar el estado del Mini en la cabecera despliega **Conexión**: disponibilidad del ejecutor, acceso de lectura a la carpeta Drive recordada y fecha/hora de cada comprobación en `Pacific/Easter` (`DD-MM-AAAA HH:mm:ss`). La comprobación de carpeta verifica permiso y una lectura mínima del directorio, sin recorrer expedientes. El acceso directo del navegador y el archivo servido por el Mini son conexiones distintas. «Carpeta disponible» no confirma sincronización en la nube; una señal vencida del Mini se muestra como tal. Un permiso pendiente ofrece **Reconectar Drive** sin intentar concederlo automáticamente.
+
+Lecturas de biblioteca y comprobaciones tienen hasta **tres intentos**, con esperas de 300 y 900 ms, exclusivamente ante errores transitorios identificados. Cambiar de paciente/espacio u ocultar cancela los siguientes intentos. Permisos, integridad, incompatibilidad y errores desconocidos no se repiten. El HTTP local se aborta a los cuatro segundos por intento; una lectura de carpeta no cancelable vence a los seis segundos y **no** inicia otra operación automáticamente. El sondeo de resumen se suspende tras un fallo definitivo hasta actualizar/reconectar; conserva la vista previa con copia bloqueada. No aplicar esta recuperación a envíos de solicitudes, credenciales, descargas, archivo, apertura de carpetas ni portapapeles.
+
+**Copiar diagnóstico** construye texto con versión de extensión, zona horaria, estados y hasta ocho eventos de componente/código/intento/hora. Sus campos usan listas permitidas: nunca exportar mensajes originales de error, nombres, RUT, textos clínicos, rutas, IDs, hashes, sesiones o credenciales. Se mantiene solo en memoria y se copia por pulsación; si el portapapeles falla, ofrece selección manual. No se envía a servidores ni se guarda en Drive. Los errores de transporte del puente devuelven códigos seguros; el contenido de una respuesta fallida no se transmite al panel.
+
 ## Fronteras y permisos
 
 El sitio recibe únicamente el botón circular, aislado con Shadow DOM; el panel pertenece a la extensión. No insertar resúmenes en el DOM de Eloísa. El trabajador acepta mensajes de biblioteca solo desde `panel/index.html` de su propia extensión. Las rutas locales son fijas; no acepta URLs ni rutas de archivo libres. No exportar textos por mensajes a la página ni habilitar `web_accessible_resources` para el panel.
@@ -53,6 +61,6 @@ El sitio recibe únicamente el botón circular, aislado con Shadow DOM; el panel
 
 Actualizar la misma carpeta instalada, **Recargar** Nexo en Administrar extensiones y recargar la pestaña de Eloísa. No afirmar que una instalación ya está activa por haber copiado sus archivos. El ZIP se empaqueta desde HEAD con `package_extension.py`.
 
-`./check.command` comprueba contratos compartidos, identidades, homónimos, archivos modificados, vigencia, lectura acotada al expediente, reemplazo de índice durante la lectura, reconexión de permiso, avisos sin reemplazo de texto, respuesta tardía de comprobación, seguimiento contextual, recuperación, mensajería y cambios de contexto con datos ficticios. GitHub Actions prepara el runtime fijado y repite esas comprobaciones en cada PR. Las pruebas visuales se realizan con un expediente ficticio; no equivalen a una descarga clínica ni confirman sincronización Air → Mini.
+`./check.command` comprueba contratos compartidos, identidades, homónimos, archivos modificados, vigencia, lectura acotada al expediente, reemplazo de índice durante la lectura, reconexión de permiso, avisos sin reemplazo de texto, respuesta tardía de comprobación, seguimiento contextual, reintentos acotados, suspensión tras fallo, diagnóstico por lista permitida, recuperación, mensajería y cambios de contexto con datos ficticios. GitHub Actions prepara el runtime fijado y repite esas comprobaciones en cada PR. Las pruebas visuales se realizan con un expediente ficticio; no equivalen a una descarga clínica ni confirman sincronización Air → Mini.
 
 Referencia de plataforma: [File System Access, permisos y handles recordados](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access). La autorización se solicita por pulsación; no desde una actualización automática.
