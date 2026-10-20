@@ -368,6 +368,13 @@ class PatientArchive:
                     except Exception:entry['sync_reason']='Verificación de subida a Drive pendiente.'
                     result['files'].append(entry)
             except (ArchiveError,OSError,ValueError,KeyError) as error:result['pending'].append(str(error))
+        for row in summary.get('artifact_states',[]):
+            if row.get('status') not in ('stale','modified') or not row.get('name'):continue
+            try:
+                from clinical_publication import mark_freshness
+                mark_freshness(self.folder(row['rut'],row['name']),'delivery-'+row['kind'],summary['publication_job']['id'],row['status'])
+            except (ArchiveError,OSError,ValueError,KeyError,TypeError,AttributeError):
+                result['pending'].append('Actualización de vigencia en Drive pendiente.')
         result['files']=list({f['path']:f for f in result['files']}.values())
         if result['pending']:result['status']='partial'
         result['sync']='confirmed' if result['files'] and all(f['sync']=='confirmed' for f in result['files']) and not result['pending'] else 'pending'

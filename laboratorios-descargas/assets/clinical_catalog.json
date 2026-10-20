@@ -2,6 +2,18 @@
   "version": 1,
   "packetVersion": 4,
   "identity": {"minDigits":7,"maxDigits":8,"maxPatients":200},
+  "library": {
+    "version":1,
+    "patientsFolder":"Pacientes",
+    "readingFolder":"Lectura y entregas",
+    "controlFolder":"Control y trazabilidad",
+    "identityFilename":"Identidad del paciente.txt",
+    "manifestFilename":"Entregas vigentes.json",
+    "maxTextBytes":262144,
+    "maxPatients":1000,
+    "maxDocuments":100,
+    "filenamePatterns":["^([0-9]{2}-[0-9]{2}-[0-9]{4}) Resumen antecedentes(?: - .+)?\\.txt$","^Resumen de antecedentes(?: - ([0-9]{2}-[0-9]{2}-[0-9]{4})(?: - .+)?)?\\.txt$"]
+  },
   "sources": {"syslab":"Syslab","exalab":"Exalab","eloisa":"Eloísa Ambulatorio","mmrad":"MMRAD","his":"HIS","rayen":"Eloísa Hospitalizados","email":"Correo"},
   "periods": [
     {"value":"30d","label":"Últimos 30 días","short":"30 días","stop":"30 d","days":30},

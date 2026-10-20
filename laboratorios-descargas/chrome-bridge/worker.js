@@ -1,4 +1,4 @@
-importScripts('agenda_core.js','agenda_worker.js');
+importScripts('agenda_core.js','agenda_worker.js','panel_worker.js');
 const LOCAL = 'http://127.0.0.1:8765/api/sessions';
 const SOURCES = ['exalab', 'eloisa', 'rayen'];
 
@@ -72,17 +72,30 @@ async function collect(message) {
 
 function allowedAgendaSender(sender) {
   try {
-    if (sender.frameId && sender.frameId !== 0) return false;
     const url = new URL(sender.url);
-    return url.origin === 'http://127.0.0.1:8765' ||
-      (sender.id === chrome.runtime.id && url.href.split('#')[0] === chrome.runtime.getURL('request/index.html'));
+    const own=new URL(chrome.runtime.getURL('request/index.html'));
+    return (url.origin === 'http://127.0.0.1:8765' && (!sender.frameId || sender.frameId===0)) ||
+      (sender.id === chrome.runtime.id && url.protocol===own.protocol && url.host===own.host && url.pathname===own.pathname);
   } catch (_) { return false; }
 }
-chrome.action.onClicked.addListener(async () => {
-  await chrome.tabs.create({url:chrome.runtime.getURL('request/index.html')});
+chrome.action.onClicked.addListener(async tab => {
+  try{await chrome.sidePanel.open({tabId:tab.id});}
+  catch(_){await chrome.tabs.create({url:chrome.runtime.getURL('panel/index.html')});}
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if(message?.type==='nexo.panel.open'){
+    if(!eloisaButton(sender) || Object.keys(message).length!==1)return false;
+    // Invocar antes de cualquier await conserva el gesto del botón de Eloísa.
+    const opening=chrome.sidePanel.open({tabId:sender.tab.id});
+    (async()=>{try{await opening;sendResponse({ok:true});}catch(_){sendResponse({ok:false,error:'No se pudo abrir Nexo.'});}})();
+    return true;
+  }
+  if(['nexo.library.list','nexo.library.read','nexo.panel.tab'].includes(message?.type)){
+    if(!ownPanel(sender))return false;
+    (async()=>{try{sendResponse({ok:true,result:await panelRequest(message)});}catch(_){sendResponse({ok:false,error:'Abre Nexo en este Mac o conecta tu carpeta Pacientes de Drive.'});}})();
+    return true;
+  }
   if (message?.type === 'labs.agenda') {
     if (!allowedAgendaSender(sender)) return false;
     (async () => {

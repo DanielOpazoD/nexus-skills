@@ -365,7 +365,8 @@ class PersistentLauncher:
             with self.lock:
                 self._review_status(job);self._receipt(job);summary=copy.deepcopy(job['_summary'])
                 summary['publication_job']={k:job[k] for k in ('id','as_of','started_at')}
-                summary['artifacts']=[r['artifact'] for r in states(job) if r['status'] in ('verified','archived')]
+                summary['artifact_states']=states(job)
+                summary['artifacts']=[r['artifact'] for r in summary['artifact_states'] if r['status'] in ('verified','archived')]
             result=PatientArchive(job['work_output'],self.archive_root,self.verifier).archive(summary) if summary else {'status':'pending','sync':'pending','files':[]}
         except Exception:result={'status':'pending','sync':'pending','files':[],'pending':['Archivo en Drive pendiente; documentos locales conservados.']}
         with self.lock:job['archive']=result;job['archive_dirty']=False;self._persist()
@@ -422,6 +423,10 @@ class PersistentLauncher:
 
     def history(self):
         with self.lock:return [{'id':j['id'],'status':j['status'],'started_at':j['started_at'],'sources':j['selected'],'patients':len(j['ruts']),'delivery':delivery_state(j)} for j in reversed(list(self.jobs.values()))]
+
+    def library(self):
+        from clinical_library import ClinicalLibrary
+        return ClinicalLibrary(self.archive_root)
 
     def close(self):
         self.stop_event.set();self.wake.set()

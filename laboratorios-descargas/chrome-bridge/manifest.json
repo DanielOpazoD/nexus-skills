@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Nexo · Consulta clínica",
-  "version": "3.3.0",
+  "version": "3.4.0",
+  "minimum_chrome_version": "116",
   "description": "Prepara solicitudes y selecciona pacientes desde la agenda de Eloísa en este Mac. Entrega sesiones al descargador local.",
   "permissions": [
     "cookies",
     "scripting",
-    "tabs"
+    "tabs",
+    "sidePanel",
+    "clipboardWrite"
   ],
   "host_permissions": [
     "https://exalab.saludoriente.cl/*",
@@ -19,6 +22,11 @@
   },
   "content_scripts": [
     {
+      "matches":["https://clinicohangaroa.eloisa.cl/*"],
+      "js":["eloisa_panel.js"],
+      "run_at":"document_idle"
+    },
+    {
       "matches": [
         "http://127.0.0.1:8765/*"
       ],
@@ -28,6 +36,7 @@
       "run_at": "document_idle"
     }
   ],
+  "side_panel": {"default_path":"panel/index.html"},
   "action": {
     "default_title": "Abrir Nexo",
     "default_icon": {
@@ -36,7 +45,7 @@
     }
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'; connect-src https://clinicohangaroa.eloisa.cl https://fichamedico.rayensalud.cl http://127.0.0.1:8765; base-uri 'none'; frame-ancestors 'none'"
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src https://clinicohangaroa.eloisa.cl https://fichamedico.rayensalud.cl http://127.0.0.1:8765; frame-src 'self'; base-uri 'none'; frame-ancestors 'self'"
   },
   "short_name": "Nexo",
   "icons": {

@@ -74,11 +74,13 @@ class ArtifactTests(unittest.TestCase):
         self.assertTrue(old_files.issubset({f['sha256'] for f in complete['files']}))
         self.assertEqual(complete['artifacts'][0]['status'],'stale')
         self.assertEqual(digest(complete['artifacts'][0]['artifact']['path']),sha)
+        self.assertEqual(q.library().list()['patients'][0]['documents'][0]['status'],'stale')
         with self.assertRaises(ValueError):q.register_delivery(draft)
         updated = self.draft(q.jobs[request['id']])
         Path(updated['path']).write_text(Path(updated['path']).read_text()+'Epicrisis registrada el 15-10-2026.\n')
         delivered = q.register_delivery(updated)
         self.assertEqual(delivered['artifacts'][0]['status'],'archived')
+        self.assertEqual(q.library().list()['patients'][0]['documents'][0]['status'],'current')
         folder = self.drive/'Pacientes'/'Paciente Ficticio'
         self.assertEqual(len(list((folder/READING_FOLDER).glob('*Resumen antecedentes*.txt'))),1)
         self.assertEqual(len(list((folder/CONTROL_FOLDER/'Archivo anterior/Entregas/delivery-antecedentes').glob('*.txt'))),1)
